@@ -1,0 +1,434 @@
+
+> rest-express@1.0.0 dev
+> cross-env NODE_ENV=development tsx server/index.ts
+
+[DEBUG] Setting up Google OAuth with:
+- Client ID: Set
+- Client Secret: Set
+- Callback URL: http://localhost:5000/api/auth/google/callback
+- Frontend URL: http://localhost:5000
+[DEBUG] End of auth routes configuration
+[DEBUG] Connecting to MongoDB with Mongoose...
+[DEBUG] Mongoose connection successful
+[DEBUG] Initializing MongoDB connection...
+[DEBUG] Connected to MongoDB server
+[DEBUG] Database instance created
+[DEBUG] Connection verified
+3:17:14 PM [express] API Server running on http://localhost:5000
+3:17:14 PM [express] Environment check:
+3:17:14 PM [express] - GOOGLE_CLIENT_ID: Set
+3:17:14 PM [express] - GOOGLE_CLIENT_SECRET: Set
+3:17:14 PM [express] - SESSION_SECRET: Set
+3:17:14 PM [express] ----------------------------------------
+----------------------------------------
+[DEBUG] Incoming request: GET /
+[DEBUG] Headers: {
+  host: 'localhost:5000',
+  connection: 'keep-alive',
+  'sec-ch-ua-platform': '"macOS"',
+  'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
+  accept: 'text/x-vite-ping',
+  'sec-ch-ua': '"Google Chrome";v="137", "Chromium";v="137", "Not/A)Brand";v="24"',
+  'sec-ch-ua-mobile': '?0',
+  'sec-fetch-site': 'same-origin',
+  'sec-fetch-mode': 'no-cors',
+  'sec-fetch-dest': 'empty',
+  referer: 'http://localhost:5000/',
+  'accept-encoding': 'gzip, deflate, br, zstd',
+  'accept-language': 'en-US,en;q=0.9',
+  cookie: 'user_data=%7B%22id%22%3A%2268493db52313d52c2e45a746%22%2C%22email%22%3A%22pearai095%40gmail.com%22%2C%22firstName%22%3A%22Pear%22%2C%22lastName%22%3A%22Ai%22%2C%22role%22%3A%22student%22%2C%22profileImageUrl%22%3A%22https%3A%2F%2Flh3.googleusercontent.com%2Fa%2FACg8ocIFFhxUtGeKSJ1Tma7Xk2IaSR8TS_suEtQE_WbPTCWObKKILA%3Ds96-c%22%7D; token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4NDdjZjA0MjhjNjExZGU4MjczNzRmMiIsInN1YiI6IjY4NDdjZjA0MjhjNjExZGU4MjczNzRmMiIsImlhdCI6MTc0OTYzMzg0MCwiZXhwIjoxNzUwMjM4NjQwfQ.DWIZLq8Oe7i-pqNVrXhH44x0iXHpoL7goqCBryjC-28; connect.sid=s%3AD-jYUrYUhcykJHll6XbXHK-x7_wxjUCL.lKNHa4AVjf8GohVsAq9MR923Uv7MgZTduK%2BeTsdPF%2Fw'
+}
+----------------------------------------
+[DEBUG] Incoming request: GET /
+[DEBUG] Headers: {
+  host: 'localhost:5000',
+  connection: 'keep-alive',
+  'cache-control': 'max-age=0',
+  'sec-ch-ua': '"Google Chrome";v="137", "Chromium";v="137", "Not/A)Brand";v="24"',
+  'sec-ch-ua-mobile': '?0',
+  'sec-ch-ua-platform': '"macOS"',
+  'upgrade-insecure-requests': '1',
+  'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
+  accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+  'sec-fetch-site': 'same-origin',
+  'sec-fetch-mode': 'navigate',
+  'sec-fetch-dest': 'document',
+  referer: 'http://localhost:5000/',
+  'accept-encoding': 'gzip, deflate, br, zstd',
+  'accept-language': 'en-US,en;q=0.9',
+  cookie: 'user_data=%7B%22id%22%3A%2268493db52313d52c2e45a746%22%2C%22email%22%3A%22pearai095%40gmail.com%22%2C%22firstName%22%3A%22Pear%22%2C%22lastName%22%3A%22Ai%22%2C%22role%22%3A%22student%22%2C%22profileImageUrl%22%3A%22https%3A%2F%2Flh3.googleusercontent.com%2Fa%2FACg8ocIFFhxUtGeKSJ1Tma7Xk2IaSR8TS_suEtQE_WbPTCWObKKILA%3Ds96-c%22%7D; token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4NDdjZjA0MjhjNjExZGU4MjczNzRmMiIsInN1YiI6IjY4NDdjZjA0MjhjNjExZGU4MjczNzRmMiIsImlhdCI6MTc0OTYzMzg0MCwiZXhwIjoxNzUwMjM4NjQwfQ.DWIZLq8Oe7i-pqNVrXhH44x0iXHpoL7goqCBryjC-28; connect.sid=s%3Av1bRdXQUSnykjen4cS15PExXtEtVqatL.K3qZzECFHXjdBG8bRm7wNc8ShoHAhlti2a%2FEKIuJwqg'
+}
+----------------------------------------
+[DEBUG] Incoming request: GET /@vite/client
+[DEBUG] Headers: {
+  host: 'localhost:5000',
+  connection: 'keep-alive',
+  origin: 'http://localhost:5000',
+  'sec-ch-ua-platform': '"macOS"',
+  'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
+  'sec-ch-ua': '"Google Chrome";v="137", "Chromium";v="137", "Not/A)Brand";v="24"',
+  'sec-ch-ua-mobile': '?0',
+  accept: '*/*',
+  'sec-fetch-site': 'same-origin',
+  'sec-fetch-mode': 'cors',
+  'sec-fetch-dest': 'script',
+  referer: 'http://localhost:5000/',
+  'accept-encoding': 'gzip, deflate, br, zstd',
+  'accept-language': 'en-US,en;q=0.9',
+  cookie: 'user_data=%7B%22id%22%3A%2268493db52313d52c2e45a746%22%2C%22email%22%3A%22pearai095%40gmail.com%22%2C%22firstName%22%3A%22Pear%22%2C%22lastName%22%3A%22Ai%22%2C%22role%22%3A%22student%22%2C%22profileImageUrl%22%3A%22https%3A%2F%2Flh3.googleusercontent.com%2Fa%2FACg8ocIFFhxUtGeKSJ1Tma7Xk2IaSR8TS_suEtQE_WbPTCWObKKILA%3Ds96-c%22%7D; token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4NDdjZjA0MjhjNjExZGU4MjczNzRmMiIsInN1YiI6IjY4NDdjZjA0MjhjNjExZGU4MjczNzRmMiIsImlhdCI6MTc0OTYzMzg0MCwiZXhwIjoxNzUwMjM4NjQwfQ.DWIZLq8Oe7i-pqNVrXhH44x0iXHpoL7goqCBryjC-28; connect.sid=s%3Av1bRdXQUSnykjen4cS15PExXtEtVqatL.K3qZzECFHXjdBG8bRm7wNc8ShoHAhlti2a%2FEKIuJwqg',
+  'if-none-match': 'W/"5cdd-MAiNshHq9fH1e966ruhh0U2F+kI"'
+}
+----------------------------------------
+[DEBUG] Incoming request: GET /src/main.tsx?v=KHg8g7YOmkjv6e-WmMNXg
+[DEBUG] Headers: {
+  host: 'localhost:5000',
+  connection: 'keep-alive',
+  origin: 'http://localhost:5000',
+  'sec-ch-ua-platform': '"macOS"',
+  'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
+  'sec-ch-ua': '"Google Chrome";v="137", "Chromium";v="137", "Not/A)Brand";v="24"',
+  'sec-ch-ua-mobile': '?0',
+  accept: '*/*',
+  'sec-fetch-site': 'same-origin',
+  'sec-fetch-mode': 'cors',
+  'sec-fetch-dest': 'script',
+  referer: 'http://localhost:5000/',
+  'accept-encoding': 'gzip, deflate, br, zstd',
+  'accept-language': 'en-US,en;q=0.9',
+  cookie: 'user_data=%7B%22id%22%3A%2268493db52313d52c2e45a746%22%2C%22email%22%3A%22pearai095%40gmail.com%22%2C%22firstName%22%3A%22Pear%22%2C%22lastName%22%3A%22Ai%22%2C%22role%22%3A%22student%22%2C%22profileImageUrl%22%3A%22https%3A%2F%2Flh3.googleusercontent.com%2Fa%2FACg8ocIFFhxUtGeKSJ1Tma7Xk2IaSR8TS_suEtQE_WbPTCWObKKILA%3Ds96-c%22%7D; token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4NDdjZjA0MjhjNjExZGU4MjczNzRmMiIsInN1YiI6IjY4NDdjZjA0MjhjNjExZGU4MjczNzRmMiIsImlhdCI6MTc0OTYzMzg0MCwiZXhwIjoxNzUwMjM4NjQwfQ.DWIZLq8Oe7i-pqNVrXhH44x0iXHpoL7goqCBryjC-28; connect.sid=s%3Av1bRdXQUSnykjen4cS15PExXtEtVqatL.K3qZzECFHXjdBG8bRm7wNc8ShoHAhlti2a%2FEKIuJwqg'
+}
+----------------------------------------
+[DEBUG] Incoming request: GET /@react-refresh
+[DEBUG] Headers: {
+  host: 'localhost:5000',
+  connection: 'keep-alive',
+  origin: 'http://localhost:5000',
+  'sec-ch-ua-platform': '"macOS"',
+  'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
+  'sec-ch-ua': '"Google Chrome";v="137", "Chromium";v="137", "Not/A)Brand";v="24"',
+  'sec-ch-ua-mobile': '?0',
+  accept: '*/*',
+  'sec-fetch-site': 'same-origin',
+  'sec-fetch-mode': 'cors',
+  'sec-fetch-dest': 'script',
+  referer: 'http://localhost:5000/',
+  'accept-encoding': 'gzip, deflate, br, zstd',
+  'accept-language': 'en-US,en;q=0.9',
+  cookie: 'user_data=%7B%22id%22%3A%2268493db52313d52c2e45a746%22%2C%22email%22%3A%22pearai095%40gmail.com%22%2C%22firstName%22%3A%22Pear%22%2C%22lastName%22%3A%22Ai%22%2C%22role%22%3A%22student%22%2C%22profileImageUrl%22%3A%22https%3A%2F%2Flh3.googleusercontent.com%2Fa%2FACg8ocIFFhxUtGeKSJ1Tma7Xk2IaSR8TS_suEtQE_WbPTCWObKKILA%3Ds96-c%22%7D; token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4NDdjZjA0MjhjNjExZGU4MjczNzRmMiIsInN1YiI6IjY4NDdjZjA0MjhjNjExZGU4MjczNzRmMiIsImlhdCI6MTc0OTYzMzg0MCwiZXhwIjoxNzUwMjM4NjQwfQ.DWIZLq8Oe7i-pqNVrXhH44x0iXHpoL7goqCBryjC-28; connect.sid=s%3Av1bRdXQUSnykjen4cS15PExXtEtVqatL.K3qZzECFHXjdBG8bRm7wNc8ShoHAhlti2a%2FEKIuJwqg',
+  'if-none-match': 'W/"46bc-6Tn5IZwHtpLVITC6wERYgp5tzPY"'
+}
+----------------------------------------
+[DEBUG] Incoming request: GET /@fs/Users/ace/Downloads/CodeArenaa/node_modules/vite/dist/client/env.mjs
+[DEBUG] Headers: {
+  host: 'localhost:5000',
+  connection: 'keep-alive',
+  origin: 'http://localhost:5000',
+  'sec-ch-ua-platform': '"macOS"',
+  'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
+  'sec-ch-ua': '"Google Chrome";v="137", "Chromium";v="137", "Not/A)Brand";v="24"',
+  'sec-ch-ua-mobile': '?0',
+  accept: '*/*',
+  'sec-fetch-site': 'same-origin',
+  'sec-fetch-mode': 'cors',
+  'sec-fetch-dest': 'script',
+  referer: 'http://localhost:5000/@vite/client',
+  'accept-encoding': 'gzip, deflate, br, zstd',
+  'accept-language': 'en-US,en;q=0.9',
+  cookie: 'user_data=%7B%22id%22%3A%2268493db52313d52c2e45a746%22%2C%22email%22%3A%22pearai095%40gmail.com%22%2C%22firstName%22%3A%22Pear%22%2C%22lastName%22%3A%22Ai%22%2C%22role%22%3A%22student%22%2C%22profileImageUrl%22%3A%22https%3A%2F%2Flh3.googleusercontent.com%2Fa%2FACg8ocIFFhxUtGeKSJ1Tma7Xk2IaSR8TS_suEtQE_WbPTCWObKKILA%3Ds96-c%22%7D; token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4NDdjZjA0MjhjNjExZGU4MjczNzRmMiIsInN1YiI6IjY4NDdjZjA0MjhjNjExZGU4MjczNzRmMiIsImlhdCI6MTc0OTYzMzg0MCwiZXhwIjoxNzUwMjM4NjQwfQ.DWIZLq8Oe7i-pqNVrXhH44x0iXHpoL7goqCBryjC-28; connect.sid=s%3Av1bRdXQUSnykjen4cS15PExXtEtVqatL.K3qZzECFHXjdBG8bRm7wNc8ShoHAhlti2a%2FEKIuJwqg',
+  'if-none-match': 'W/"27a-50Oe5S7HDq59Hm15o909pGTGmf8"'
+}
+----------------------------------------
+[DEBUG] Incoming request: GET /src/App.tsx?v=KHg8g7YOmkjv6e-WmMNXg
+[DEBUG] Headers: {
+  host: 'localhost:5000',
+  connection: 'keep-alive',
+  origin: 'http://localhost:5000',
+  'sec-ch-ua-platform': '"macOS"',
+  'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
+  'sec-ch-ua': '"Google Chrome";v="137", "Chromium";v="137", "Not/A)Brand";v="24"',
+  'sec-ch-ua-mobile': '?0',
+  accept: '*/*',
+  'sec-fetch-site': 'same-origin',
+  'sec-fetch-mode': 'cors',
+  'sec-fetch-dest': 'script',
+  referer: 'http://localhost:5000/src/main.tsx?v=KHg8g7YOmkjv6e-WmMNXg',
+  'accept-encoding': 'gzip, deflate, br, zstd',
+  'accept-language': 'en-US,en;q=0.9',
+  cookie: 'user_data=%7B%22id%22%3A%2268493db52313d52c2e45a746%22%2C%22email%22%3A%22pearai095%40gmail.com%22%2C%22firstName%22%3A%22Pear%22%2C%22lastName%22%3A%22Ai%22%2C%22role%22%3A%22student%22%2C%22profileImageUrl%22%3A%22https%3A%2F%2Flh3.googleusercontent.com%2Fa%2FACg8ocIFFhxUtGeKSJ1Tma7Xk2IaSR8TS_suEtQE_WbPTCWObKKILA%3Ds96-c%22%7D; token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4NDdjZjA0MjhjNjExZGU4MjczNzRmMiIsInN1YiI6IjY4NDdjZjA0MjhjNjExZGU4MjczNzRmMiIsImlhdCI6MTc0OTYzMzg0MCwiZXhwIjoxNzUwMjM4NjQwfQ.DWIZLq8Oe7i-pqNVrXhH44x0iXHpoL7goqCBryjC-28; connect.sid=s%3Av1bRdXQUSnykjen4cS15PExXtEtVqatL.K3qZzECFHXjdBG8bRm7wNc8ShoHAhlti2a%2FEKIuJwqg'
+}
+----------------------------------------
+[DEBUG] Incoming request: GET /src/index.css?v=KHg8g7YOmkjv6e-WmMNXg
+[DEBUG] Headers: {
+  host: 'localhost:5000',
+  connection: 'keep-alive',
+  origin: 'http://localhost:5000',
+  'sec-ch-ua-platform': '"macOS"',
+  'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
+  'sec-ch-ua': '"Google Chrome";v="137", "Chromium";v="137", "Not/A)Brand";v="24"',
+  'sec-ch-ua-mobile': '?0',
+  accept: '*/*',
+  'sec-fetch-site': 'same-origin',
+  'sec-fetch-mode': 'cors',
+  'sec-fetch-dest': 'script',
+  referer: 'http://localhost:5000/src/main.tsx?v=KHg8g7YOmkjv6e-WmMNXg',
+  'accept-encoding': 'gzip, deflate, br, zstd',
+  'accept-language': 'en-US,en;q=0.9',
+  cookie: 'user_data=%7B%22id%22%3A%2268493db52313d52c2e45a746%22%2C%22email%22%3A%22pearai095%40gmail.com%22%2C%22firstName%22%3A%22Pear%22%2C%22lastName%22%3A%22Ai%22%2C%22role%22%3A%22student%22%2C%22profileImageUrl%22%3A%22https%3A%2F%2Flh3.googleusercontent.com%2Fa%2FACg8ocIFFhxUtGeKSJ1Tma7Xk2IaSR8TS_suEtQE_WbPTCWObKKILA%3Ds96-c%22%7D; token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4NDdjZjA0MjhjNjExZGU4MjczNzRmMiIsInN1YiI6IjY4NDdjZjA0MjhjNjExZGU4MjczNzRmMiIsImlhdCI6MTc0OTYzMzg0MCwiZXhwIjoxNzUwMjM4NjQwfQ.DWIZLq8Oe7i-pqNVrXhH44x0iXHpoL7goqCBryjC-28; connect.sid=s%3Av1bRdXQUSnykjen4cS15PExXtEtVqatL.K3qZzECFHXjdBG8bRm7wNc8ShoHAhlti2a%2FEKIuJwqg'
+}
+Browserslist: browsers data (caniuse-lite) is 8 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Internal server error: Failed to resolve import "@/pages/CourseDetail" from "client/src/App.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /Users/ace/Downloads/CodeArenaa/client/src/App.tsx:36:25
+  49 |  import AdminLeaderboard from "@/pages/admin/leaderboard";
+  50 |  import { useAuth } from "@/hooks/useAuth";
+  51 |  import CourseDetail from "@/pages/CourseDetail";
+     |                            ^
+  52 |  import EditCourse from "@/pages/admin/EditCourse";
+  53 |  function AppContent() {
+      at TransformPluginContext._formatError (/Users/ace/Downloads/CodeArenaa/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:49257:41)
+      at TransformPluginContext.error (/Users/ace/Downloads/CodeArenaa/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:49252:16)
+      at normalizeUrl (/Users/ace/Downloads/CodeArenaa/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:64199:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async <anonymous> (/Users/ace/Downloads/CodeArenaa/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:64331:39)
+      at async Promise.all (index 36)
+      at async TransformPluginContext.transform (/Users/ace/Downloads/CodeArenaa/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:64258:7)
+      at async PluginContainer.transform (/Users/ace/Downloads/CodeArenaa/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:49098:18)
+      at async loadAndTransform (/Users/ace/Downloads/CodeArenaa/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:51931:27) Error: Failed to resolve import "@/pages/CourseDetail" from "client/src/App.tsx". Does the file exist?
+    at TransformPluginContext._formatError (/Users/ace/Downloads/CodeArenaa/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:49257:41)
+    at TransformPluginContext.error (/Users/ace/Downloads/CodeArenaa/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:49252:16)
+    at normalizeUrl (/Users/ace/Downloads/CodeArenaa/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:64199:23)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async <anonymous> (/Users/ace/Downloads/CodeArenaa/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:64331:39)
+    at async Promise.all (index 36)
+    at async TransformPluginContext.transform (/Users/ace/Downloads/CodeArenaa/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:64258:7)
+    at async PluginContainer.transform (/Users/ace/Downloads/CodeArenaa/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:49098:18)
+    at async loadAndTransform (/Users/ace/Downloads/CodeArenaa/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:51931:27) {
+  plugin: 'vite:import-analysis',
+  id: '/Users/ace/Downloads/CodeArenaa/client/src/App.tsx',
+  pluginCode: 'import { Fragment, jsxDEV } from "react/jsx-dev-runtime";\n' +
+    'import RefreshRuntime from "/@react-refresh";\n' +
+    'const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;\n' +
+    'let prevRefreshReg;\n' +
+    'let prevRefreshSig;\n' +
+    'if (import.meta.hot && !inWebWorker) {\n' +
+    '  if (!window.__vite_plugin_react_preamble_installed__) {\n' +
+    `    throw new Error("@vitejs/plugin-react can't detect preamble. Something is wrong. See https://github.com/vitejs/vite-plugin-react/pull/11#discussion_r430879201");\n` +
+    '  }\n' +
+    '  prevRefreshReg = window.$RefreshReg$;\n' +
+    '  prevRefreshSig = window.$RefreshSig$;\n' +
+    '  window.$RefreshReg$ = (type, id) => {\n' +
+    '    RefreshRuntime.register(type, "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx " + id);\n' +
+    '  };\n' +
+    '  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;\n' +
+    '}\n' +
+    'var _s = $RefreshSig$();\n' +
+    'import { Switch, Route, Redirect } from "wouter";\n' +
+    'import { queryClient } from "./lib/queryClient";\n' +
+    'import { QueryClientProvider } from "@tanstack/react-query";\n' +
+    'import { Toaster } from "@/components/ui/toaster";\n' +
+    'import { TooltipProvider } from "@/components/ui/tooltip";\n' +
+    'import { ThemeProvider } from "@/components/ui/theme-provider";\n' +
+    'import { Layout } from "@/components/layout/Layout";\n' +
+    'import NotFound from "@/pages/not-found";\n' +
+    'import Landing from "@/pages/landing";\n' +
+    'import Dashboard from "@/pages/dashboard";\n' +
+    'import Problems from "@/pages/problems";\n' +
+    'import ProblemDetail from "@/pages/problem-detail";\n' +
+    'import Contests from "@/pages/contests";\n' +
+    'import Leaderboard from "@/pages/leaderboard";\n' +
+    'import AdminDashboard from "@/pages/admin-dashboard";\n' +
+    'import Profile from "@/pages/profile";\n' +
+    'import Settings from "@/pages/settings";\n' +
+    'import LoginPage from "@/pages/auth/LoginPage";\n' +
+    'import RegisterPage from "@/pages/auth/RegisterPage";\n' +
+    'import AuthCallback from "@/pages/auth/AuthCallback";\n' +
+    'import { useLocation } from "wouter";\n' +
+    'import Courses from "@/pages/Courses";\n' +
+    'import CourseModuleViewer from "@/pages/CourseModuleViewer";\n' +
+    'import Assignments from "@/pages/Assignments";\n' +
+    'import AssignmentSubmission from "@/pages/AssignmentSubmission";\n' +
+    'import AdminAssignments from "@/pages/AdminAssignments";\n' +
+    'import CreateAssignment from "@/pages/CreateAssignment";\n' +
+    'import AdminProblems from "@/pages/admin/problems";\n' +
+    'import AdminContests from "@/pages/admin/contests";\n' +
+    'import AdminCourses from "@/pages/admin/courses";\n' +
+    'import CreateCourse from "@/pages/admin/CreateCourse";\n' +
+    'import AdminLeaderboard from "@/pages/admin/leaderboard";\n' +
+    'import { useAuth } from "@/hooks/useAuth";\n' +
+    'import CourseDetail from "@/pages/CourseDetail";\n' +
+    'import EditCourse from "@/pages/admin/EditCourse";\n' +
+    'function AppContent() {\n' +
+    '  _s();\n' +
+    '  const { user, isLoading, isAuthenticated } = useAuth();\n' +
+    '  const [location, setLocation] = useLocation();\n' +
+    '  const PublicRoute = ({ children }) => {\n' +
+    '    if (isAuthenticated) {\n' +
+    '      return /* @__PURE__ */ jsxDEV(Redirect, { to: "/dashboard" }, void 0, false, {\n' +
+    '        fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '        lineNumber: 46,\n' +
+    '        columnNumber: 14\n' +
+    '      }, this);\n' +
+    '    }\n' +
+    '    return /* @__PURE__ */ jsxDEV(Fragment, { children }, void 0, false, {\n' +
+    '      fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '      lineNumber: 48,\n' +
+    '      columnNumber: 12\n' +
+    '    }, this);\n' +
+    '  };\n' +
+    '  const AdminRoute = ({ children }) => {\n' +
+    '    if (!isAuthenticated || user?.role !== "admin") {\n' +
+    '      return /* @__PURE__ */ jsxDEV(Redirect, { to: "/dashboard" }, void 0, false, {\n' +
+    '        fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '        lineNumber: 54,\n' +
+    '        columnNumber: 14\n' +
+    '      }, this);\n' +
+    '    }\n' +
+    '    return /* @__PURE__ */ jsxDEV(Fragment, { children }, void 0, false, {\n' +
+    '      fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '      lineNumber: 56,\n' +
+    '      columnNumber: 12\n' +
+    '    }, this);\n' +
+    '  };\n' +
+    '  if (isLoading) {\n' +
+    '    return /* @__PURE__ */ jsxDEV("div", { className: "min-h-screen flex items-center justify-center", children: /* @__PURE__ */ jsxDEV("div", { className: "animate-spin rounded-full h-32 w-32 border-b-2 border-green-500" }, void 0, false, {\n' +
+    '      fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '      lineNumber: 62,\n' +
+    '      columnNumber: 9\n' +
+    '    }, this) }, void 0, false, {\n' +
+    '      fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '      lineNumber: 61,\n' +
+    '      columnNumber: 7\n' +
+    '    }, this);\n' +
+    '  }\n' +
+    '  return /* @__PURE__ */ jsxDEV(Switch, { children: [\n' +
+    '    /* @__PURE__ */ jsxDEV(Route, { path: "/auth-callback", children: /* @__PURE__ */ jsxDEV(AuthCallback, {}, void 0, false, {\n' +
+    '      fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '      lineNumber: 71,\n' +
+    '      columnNumber: 9\n' +
+    '    }, this) }, void 0, false, {\n' +
+    '      fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '      lineNumber: 70,\n' +
+    '      columnNumber: 7\n' +
+    '    }, this),\n' +
+    '    /* @__PURE__ */ jsxDEV(Route, { path: "/login", children: /* @__PURE__ */ jsxDEV(PublicRoute, { children: /* @__PURE__ */ jsxDEV(LoginPage, {}, void 0, false, {\n' +
+    '      fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '      lineNumber: 74,\n' +
+    '      columnNumber: 22\n' +
+    '    }, this) }, void 0, false, {\n' +
+    '      fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '      lineNumber: 74,\n' +
+    '      columnNumber: 9\n' +
+    '    }, this) }, void 0, false, {\n' +
+    '      fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '      lineNumber: 73,\n' +
+    '      columnNumber: 7\n' +
+    '    }, this),\n' +
+    '    /* @__PURE__ */ jsxDEV(Route, { path: "/register", children: /* @__PURE__ */ jsxDEV(PublicRoute, { children: /* @__PURE__ */ jsxDEV(RegisterPage, {}, void 0, false, {\n' +
+    '      fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '      lineNumber: 77,\n' +
+    '      columnNumber: 22\n' +
+    '    }, this) }, void 0, false, {\n' +
+    '      fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '      lineNumber: 77,\n' +
+    '      columnNumber: 9\n' +
+    '    }, this) }, void 0, false, {\n' +
+    '      fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '      lineNumber: 76,\n' +
+    '      columnNumber: 7\n' +
+    '    }, this),\n' +
+    '    /* @__PURE__ */ jsxDEV(Route, { path: "/", children: /* @__PURE__ */ jsxDEV(PublicRoute, { children: /* @__PURE__ */ jsxDEV(Landing, {}, void 0, false, {\n' +
+    '      fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '      lineNumber: 80,\n' +
+    '      columnNumber: 22\n' +
+    '    }, this) }, void 0, false, {\n' +
+    '      fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '      lineNumber: 80,\n' +
+    '      columnNumber: 9\n' +
+    '    }, this) }, void 0, false, {\n' +
+    '      fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '      lineNumber: 79,\n' +
+    '      columnNumber: 7\n' +
+    '    }, this),\n' +
+    '    isAuthenticated ? /* @__PURE__ */ jsxDEV(Layout, { children: /* @__PURE__ */ jsxDEV(Switch, { children: [\n' +
+    '      /* @__PURE__ */ jsxDEV(Route, { path: "/", component: () => /* @__PURE__ */ jsxDEV(Redirect, { to: "/dashboard" }, void 0, false, {\n' +
+    '        fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '        lineNumber: 87,\n' +
+    '        columnNumber: 46\n' +
+    '      }, this) }, void 0, false, {\n' +
+    '        fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '        lineNumber: 87,\n' +
+    '        columnNumber: 13\n' +
+    '      }, this),\n' +
+    '      /* @__PURE__ */ jsxDEV(Route, { path: "/dashboard", children: /* @__PURE__ */ jsxDEV(Dashboard, {}, void 0, false, {\n' +
+    '        fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '        lineNumber: 89,\n' +
+    '        columnNumber: 15\n' +
+    '      }, this) }, void 0, false, {\n' +
+    '        fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '        lineNumber: 88,\n' +
+    '        columnNumber: 13\n' +
+    '      }, this),\n' +
+    '      /* @__PURE__ */ jsxDEV(Route, { path: "/problems", children: user?.role === "admin" ? /* @__PURE__ */ jsxDEV(AdminProblems, {}, void 0, false, {\n' +
+    '        fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '        lineNumber: 92,\n' +
+    '        columnNumber: 41\n' +
+    '      }, this) : /* @__PURE__ */ jsxDEV(Problems, {}, void 0, false, {\n' +
+    '        fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '        lineNumber: 92,\n' +
+    '        columnNumber: 61\n' +
+    '      }, this) }, void 0, false, {\n' +
+    '        fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '        lineNumber: 91,\n' +
+    '        columnNumber: 13\n' +
+    '      }, this),\n' +
+    '      /* @__PURE__ */ jsxDEV(Route, { path: "/problems/:id", children: /* @__PURE__ */ jsxDEV(ProblemDetail, {}, void 0, false, {\n' +
+    '        fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '        lineNumber: 95,\n' +
+    '        columnNumber: 15\n' +
+    '      }, this) }, void 0, false, {\n' +
+    '        fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '        lineNumber: 94,\n' +
+    '        columnNumber: 13\n' +
+    '      }, this),\n' +
+    '      /* @__PURE__ */ jsxDEV(Route, { path: "/contests", children: user?.role === "admin" ? /* @__PURE__ */ jsxDEV(AdminContests, {}, void 0, false, {\n' +
+    '        fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '        lineNumber: 98,\n' +
+    '        columnNumber: 41\n' +
+    '      }, this) : /* @__PURE__ */ jsxDEV(Contests, {}, void 0, false, {\n' +
+    '        fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '        lineNumber: 98,\n' +
+    '        columnNumber: 61\n' +
+    '      }, this) }, void 0, false, {\n' +
+    '        fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '        lineNumber: 97,\n' +
+    '        columnNumber: 13\n' +
+    '      }, this),\n' +
+    '      /* @__PURE__ */ jsxDEV(Route, { path: "/courses", children: user?.role === "admin" ? /* @__PURE__ */ jsxDEV(AdminCourses, {}, void 0, false, {\n' +
+    '        fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '        lineNumber: 101,\n' +
+    '        columnNumber: 41\n' +
+    '      }, this) : /* @__PURE__ */ jsxDEV(Courses, {}, void 0, false, {\n' +
+    '        fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '        lineNumber: 101,\n' +
+    '        columnNumber: 60\n' +
+    '      }, this) }, void 0, false, {\n' +
+    '        fileName: "/Users/ace/Downloads/CodeArenaa/client/src/App.tsx",\n' +
+    '        lineNumber: 100,\n' +
+    '        columnNumber: 13\n' +
+    '      }, this),\n' +
+    '      /* @__PURE__ */ jsxDEV(Route, { path: "/courses/:courseId/modules/:moduleId", children: /* @__PURE__ */ jsxDEV(CourseModuleViewer, {}, void 0, false, {\n' +
+    '        fileName: "/Users/ac'... 10948 more characters,
+  loc: {
+    file: '/Users/ace/Downloads/CodeArenaa/client/src/App.tsx',
+    line: 36,
+    column: 25
+  },
+  frame: '49 |  import AdminLeaderboard from "@/pages/admin/leaderboard";\n' +
+    '50 |  import { useAuth } from "@/hooks/useAuth";\n' +
+    '51 |  import CourseDetail from "@/pages/CourseDetail";\n' +
+    '   |                            ^\n' +
+    '52 |  import EditCourse from "@/pages/admin/EditCourse";\n' +
+    '53 |  function AppContent() {'
+}

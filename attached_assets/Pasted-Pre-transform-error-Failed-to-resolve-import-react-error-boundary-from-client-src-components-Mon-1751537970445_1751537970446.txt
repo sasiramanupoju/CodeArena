@@ -1,0 +1,134 @@
+Pre-transform error: Failed to resolve import "react-error-boundary" from "client/src/components/MonacoEditor.tsx". Does the file exist? Error: Failed to resolve import "react-error-boundary" from "client/src/components/MonacoEditor.tsx". Does the file exist?
+    at TransformPluginContext._formatError (file:///Users/apple/Downloads/CodeArenaa-main/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:49257:41)
+    at TransformPluginContext.error (file:///Users/apple/Downloads/CodeArenaa-main/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:49252:16)
+    at normalizeUrl (file:///Users/apple/Downloads/CodeArenaa-main/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:64199:23)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///Users/apple/Downloads/CodeArenaa-main/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:64331:39
+    at async Promise.all (index 4)
+    at async TransformPluginContext.transform (file:///Users/apple/Downloads/CodeArenaa-main/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:64258:7)
+    at async PluginContainer.transform (file:///Users/apple/Downloads/CodeArenaa-main/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:49098:18)
+    at async loadAndTransform (file:///Users/apple/Downloads/CodeArenaa-main/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:51931:27) {
+  plugin: 'vite:import-analysis',
+  id: '/Users/apple/Downloads/CodeArenaa-main/client/src/components/MonacoEditor.tsx',
+  pluginCode: 'import { jsxDEV } from "react/jsx-dev-runtime";\n' +
+    'import RefreshRuntime from "/@react-refresh";\n' +
+    'const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;\n' +
+    'let prevRefreshReg;\n' +
+    'let prevRefreshSig;\n' +
+    'if (import.meta.hot && !inWebWorker) {\n' +
+    '  if (!window.__vite_plugin_react_preamble_installed__) {\n' +
+    `    throw new Error("@vitejs/plugin-react can't detect preamble. Something is wrong. See https://github.com/vitejs/vite-plugin-react/pull/11#discussion_r430879201");\n` +
+    '  }\n' +
+    '  prevRefreshReg = window.$RefreshReg$;\n' +
+    '  prevRefreshSig = window.$RefreshSig$;\n' +
+    '  window.$RefreshReg$ = (type, id) => {\n' +
+    '    RefreshRuntime.register(type, "/Users/apple/Downloads/CodeArenaa-main/client/src/components/MonacoEditor.tsx " + id);\n' +
+    '  };\n' +
+    '  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;\n' +
+    '}\n' +
+    'import Editor from "@monaco-editor/react";\n' +
+    'import { ErrorBoundary } from "react-error-boundary";\n' +
+    'function ErrorFallback({ error }) {\n' +
+    '  return /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-center h-full bg-red-50 border border-red-200 rounded", children: /* @__PURE__ */ jsxDEV("div", { className: "text-center p-4", children: [\n' +
+    '    /* @__PURE__ */ jsxDEV("p", { className: "text-red-600 font-medium", children: "Editor Error" }, void 0, false, {\n' +
+    '      fileName: "/Users/apple/Downloads/CodeArenaa-main/client/src/components/MonacoEditor.tsx",\n' +
+    '      lineNumber: 17,\n' +
+    '      columnNumber: 9\n' +
+    '    }, this),\n' +
+    '    /* @__PURE__ */ jsxDEV("p", { className: "text-red-500 text-sm", children: "Please refresh the page" }, void 0, false, {\n' +
+    '      fileName: "/Users/apple/Downloads/CodeArenaa-main/client/src/components/MonacoEditor.tsx",\n' +
+    '      lineNumber: 18,\n' +
+    '      columnNumber: 9\n' +
+    '    }, this)\n' +
+    '  ] }, void 0, true, {\n' +
+    '    fileName: "/Users/apple/Downloads/CodeArenaa-main/client/src/components/MonacoEditor.tsx",\n' +
+    '    lineNumber: 16,\n' +
+    '    columnNumber: 7\n' +
+    '  }, this) }, void 0, false, {\n' +
+    '    fileName: "/Users/apple/Downloads/CodeArenaa-main/client/src/components/MonacoEditor.tsx",\n' +
+    '    lineNumber: 15,\n' +
+    '    columnNumber: 5\n' +
+    '  }, this);\n' +
+    '}\n' +
+    '_c = ErrorFallback;\n' +
+    'export function MonacoEditor({\n' +
+    '  value,\n' +
+    '  onChange,\n' +
+    '  language = "javascript",\n' +
+    '  height = "400px",\n' +
+    '  theme = "vs-dark",\n' +
+    '  options = {}\n' +
+    '}) {\n' +
+    '  const handleEditorChange = (newValue) => {\n' +
+    '    onChange(newValue || "");\n' +
+    '  };\n' +
+    '  return /* @__PURE__ */ jsxDEV(ErrorBoundary, { FallbackComponent: ErrorFallback, children: /* @__PURE__ */ jsxDEV("div", { className: "border rounded-md overflow-hidden", style: { height }, children: /* @__PURE__ */ jsxDEV(\n' +
+    '    Editor,\n' +
+    '    {\n' +
+    '      height,\n' +
+    '      language,\n' +
+    '      value,\n' +
+    '      theme,\n' +
+    '      onChange: handleEditorChange,\n' +
+    '      options: {\n' +
+    '        minimap: { enabled: false },\n' +
+    '        scrollBeyondLastLine: false,\n' +
+    '        fontSize: 14,\n' +
+    '        lineNumbers: "on",\n' +
+    '        wordWrap: "on",\n' +
+    '        automaticLayout: true,\n' +
+    '        renderLineHighlight: "none",\n' +
+    '        glyphMargin: false,\n' +
+    '        folding: false,\n' +
+    '        ...options\n' +
+    '      }\n' +
+    '    },\n' +
+    '    void 0,\n' +
+    '    false,\n' +
+    '    {\n' +
+    '      fileName: "/Users/apple/Downloads/CodeArenaa-main/client/src/components/MonacoEditor.tsx",\n' +
+    '      lineNumber: 39,\n' +
+    '      columnNumber: 9\n' +
+    '    },\n' +
+    '    this\n' +
+    '  ) }, void 0, false, {\n' +
+    '    fileName: "/Users/apple/Downloads/CodeArenaa-main/client/src/components/MonacoEditor.tsx",\n' +
+    '    lineNumber: 38,\n' +
+    '    columnNumber: 7\n' +
+    '  }, this) }, void 0, false, {\n' +
+    '    fileName: "/Users/apple/Downloads/CodeArenaa-main/client/src/components/MonacoEditor.tsx",\n' +
+    '    lineNumber: 37,\n' +
+    '    columnNumber: 5\n' +
+    '  }, this);\n' +
+    '}\n' +
+    '_c2 = MonacoEditor;\n' +
+    'var _c, _c2;\n' +
+    '$RefreshReg$(_c, "ErrorFallback");\n' +
+    '$RefreshReg$(_c2, "MonacoEditor");\n' +
+    'if (import.meta.hot && !inWebWorker) {\n' +
+    '  window.$RefreshReg$ = prevRefreshReg;\n' +
+    '  window.$RefreshSig$ = prevRefreshSig;\n' +
+    '}\n' +
+    'if (import.meta.hot && !inWebWorker) {\n' +
+    '  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {\n' +
+    '    RefreshRuntime.registerExportsForReactRefresh("/Users/apple/Downloads/CodeArenaa-main/client/src/components/MonacoEditor.tsx", currentExports);\n' +
+    '    import.meta.hot.accept((nextExports) => {\n' +
+    '      if (!nextExports) return;\n' +
+    '      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("/Users/apple/Downloads/CodeArenaa-main/client/src/components/MonacoEditor.tsx", currentExports, nextExports);\n' +
+    '      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);\n' +
+    '    });\n' +
+    '  });\n' +
+    '}\n',
+  loc: {
+    file: '/Users/apple/Downloads/CodeArenaa-main/client/src/components/MonacoEditor.tsx',
+    line: 2,
+    column: 30
+  },
+  frame: '16 |  }\n' +
+    '17 |  import Editor from "@monaco-editor/react";\n' +
+    '18 |  import { ErrorBoundary } from "react-error-boundary";\n' +
+    '   |                                 ^\n' +
+    '19 |  function ErrorFallback({ error }) {\n' +
+    '20 |    return /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-center h-full bg-red-50 border border-red-200 rounded", children: /* @__PURE__ */ jsxDEV("div", { className: "text-center p-4", children: ['
+}
+apple@Apples-MacBook-Pro CodeArenaa-main % 

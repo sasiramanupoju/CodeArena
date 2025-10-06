@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  # API Service
+  api:
+    image: pearai/codearena-api:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./temp:/app/temp:rw
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  # Worker Service
+  worker:
+    image: pearai/codearena-worker:latest
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./temp:/tmp:rw
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  # Redis Service
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  # Language Execution Containers
+  python-executor:
+    image: pearai/codearena-python:latest
+    volumes:
+      - ./temp:/tmp:rw
+    restart: unless-stopped
+    command: sleep infinity
+
+  javascript-executor:
+    image: pearai/codearena-javascript:latest
+    volumes:
+      - ./temp:/tmp:rw
+    restart: unless-stopped
+    command: sleep infinity
+
+  java-executor:
+    image: pearai/codearena-java:latest
+    volumes:
+      - ./temp:/tmp:rw
+    restart: unless-stopped
+    command: sleep infinity
+
+  cpp-executor:
+    image: pearai/codearena-cpp:latest
+    volumes:
+      - ./temp:/tmp:rw
+    restart: unless-stopped
+    command: sleep infinity
+
+  c-executor:
+    image: pearai/codearena-c:latest
+    volumes:
+      - ./temp:/tmp:rw
+    restart: unless-stopped
+    command: sleep infinity
+
+volumes:
+  temp:
+    driver: local
+  redis_data:
+    driver: local
