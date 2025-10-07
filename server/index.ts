@@ -100,11 +100,11 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 (async () => {
   // Create a basic HTTP server
   const port = parseInt(process.env.PORT || '3000', 10);
-  const host = process.env.HOST || 'localhost';
+  const host = '0.0.0.0'; // Bind to all interfaces for accessibility
   
   // Start listening
   app.listen(port, host, () => {
-    console.log(`🚀 API Server running on http://${host}:${port}`);
+    console.log(`🚀 Backend API Server running on http://localhost:${port}`);
     console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log('✅ Server is listening and ready');
     
