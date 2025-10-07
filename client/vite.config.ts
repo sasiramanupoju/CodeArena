@@ -29,6 +29,7 @@ export default defineConfig({
     assetsInlineLimit: 4096,
   },
   server: {
+    host: '0.0.0.0',
     port: 5000,
     proxy: {
       '/api': {
