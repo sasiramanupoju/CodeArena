@@ -22,8 +22,8 @@ app.set('etag', false);
 // Enable CORS for development
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? process.env.FRONTEND_URL || 'https://codecheddamra.up.railway.app'
-    : 'https://codecheddamra.up.railway.app',
+    ? process.env.FRONTEND_URL || 'http://localhost:5000'
+    : 'http://localhost:5000',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -72,22 +72,11 @@ app.get('/', (req, res) => {
   });
 });
 
-// Port info endpoint for debugging
-app.get('/port-info', (req, res) => {
-  res.status(200).json({
-    assignedPort: process.env.PORT || '3000',
-    environment: process.env.NODE_ENV || 'development',
-    host: '0.0.0.0',
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Health check endpoint for Railway - responds immediately
+// Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ 
     status: 'healthy', 
-    timestamp: new Date().toISOString(),
-    port: process.env.PORT || '3000'
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -109,16 +98,15 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 });
 
 (async () => {
-  // Create a basic HTTP server immediately for health checks
+  // Create a basic HTTP server
   const port = parseInt(process.env.PORT || '3000', 10);
-  const host = '0.0.0.0'; // Always bind to all interfaces for Railway
+  const host = process.env.HOST || 'localhost';
   
-  // Start listening immediately for health checks
+  // Start listening
   app.listen(port, host, () => {
     console.log(`🚀 API Server running on http://${host}:${port}`);
-    console.log(`🌐 Railway assigned port: ${process.env.PORT || '3000'}`);
     console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log('✅ Server is listening and ready for health checks');
+    console.log('✅ Server is listening and ready');
     
     // Log environment check
     console.log('Environment check:');
