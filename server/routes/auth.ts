@@ -558,10 +558,10 @@ router.post('/resend-otp', async (req: Request, res: Response) => {
 });
 
 // Google OAuth Configuration
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '554197740711-ct4tfcpeks6lak0l533g8vqj5s94s3lh.apps.googleusercontent.com';
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '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';
-const GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || 'https://codecheddamra-server.up.railway.app/api/auth/google/callback';
-const FRONTEND_URL = process.env.FRONTEND_URL || 'https://codecheddamra.up.railway.app';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
+const GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3000/api/auth/google/callback';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5000';
 const APP_NAME = 'Code Arena';
 
 console.log('[DEBUG] Setting up Google OAuth with:');
