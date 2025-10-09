@@ -9,6 +9,9 @@ import { Document, Types } from 'mongoose';
 import jwt from 'jsonwebtoken';
 import { otpService } from '../services/otpService';
 import { gmailService } from '../services/gmailService';
+import { configDotenv } from 'dotenv';
+
+configDotenv();
 
 // Passport serialization
 passport.serializeUser((user: any, done) => {
@@ -558,9 +561,9 @@ router.post('/resend-otp', async (req: Request, res: Response) => {
 });
 
 // Google OAuth Configuration
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
-const GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3000/api/auth/google/callback';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '524898025855-g1n4oa8h1nu3mnc96c7aeotroilgi1bv.apps.googleusercontent.com';
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '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';
+const GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/api/auth/google/callback';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5000';
 const APP_NAME = 'Code Arena';
 

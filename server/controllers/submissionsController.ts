@@ -84,7 +84,8 @@ export async function createSubmission(req: AuthRequest, res: Response) {
       return res.status(404).json({ message: 'Problem not found' });
     }
 
-    const result = await executionService.executeWithTestCases(code, language, testCases);
+    const execService = await executionService;
+    const result = await execService.executeWithTestCases(code, language, testCases);
 
     const formattedResults = result.testResults.map((testResult: any, index: number) => ({
       status: testResult.error ? 'error' : testResult.passed ? 'success' : 'failed',

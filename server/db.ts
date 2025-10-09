@@ -3,7 +3,7 @@ import { EventEmitter } from 'events';
 import mongoose from 'mongoose';
 
 // Base MongoDB URL - using srv format for Atlas with test database
-const MONGODB_URL = process.env.MONGODB_URL || "mongodb+srv://bandarin29:meritcurve@meritcurve.73u7fr7.mongodb.net/test";
+const MONGODB_URL = process.env.MONGODB_URL || "mongodb+srv://CodeArena:raghavmail@codearena.vl1ishe.mongodb.net/?retryWrites=true&w=majority&appName=CodeArena";
 
 // MongoDB connection options
 const MONGODB_OPTIONS = {

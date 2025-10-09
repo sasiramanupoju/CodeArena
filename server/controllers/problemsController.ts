@@ -3,7 +3,7 @@ import type { AuthRequest } from '../middleware/auth';
 import { storage } from '../storage';
 import { insertProblemSchema } from '../shared-schema';
 import { z } from 'zod';
-import executionService from '../services/executionService';
+import { executionServicePromise } from '../services/executionService';
 
 export async function getProblems(req: Request, res: Response) {
   try {
@@ -37,10 +37,26 @@ export async function createProblem(req: AuthRequest, res: Response) {
       return res.status(401).json({ message: 'User ID not found' });
     }
 
-    const validatedData = insertProblemSchema.parse({
+    // CRITICAL FIX: Revert to a method that works with the current storage layer
+    // Find the highest existing problemNumber by fetching all problems and processing them in memory.
+    const allProblems = await storage.getProblems();
+    
+    const maxProblemNumber = allProblems.reduce((max: number, p: any) => {
+      // Safely get the problemNumber, defaulting to 0 if it doesn't exist
+      const num = typeof p.problemNumber === 'number' ? p.problemNumber : 0;
+      return num > max ? num : max;
+    }, 0);
+    
+    const newProblemNumber = maxProblemNumber + 1;
+
+    // Validate and ensure problemNumber is present
+    const validatedData = {
       ...req.body,
       createdBy: userId,
-    });
+      problemNumber: newProblemNumber, // Assign the new, unique problem number
+    };
+
+    console.log('[DEBUG] Creating problem with data:', validatedData);
 
     const problem = await storage.createProblem(validatedData);
     res.status(201).json(problem);
@@ -52,7 +68,6 @@ export async function createProblem(req: AuthRequest, res: Response) {
     res.status(500).json({ message: 'Failed to create problem' });
   }
 }
-
 export async function updateProblem(req: AuthRequest, res: Response) {
   try {
     const problemId = parseInt(req.params.id);
@@ -207,17 +222,14 @@ export async function runProblemCode(req: AuthRequest, res: Response) {
       return res.status(400).json({ error: 'Missing required fields: code and language' });
     }
 
-    // Get test cases from the request or fetch from database
     let casesToRun = testCases || [];
 
     if (problemId && !testCases) {
-      // Fetch test cases from database
       try {
         const problem = await storage.getProblem(problemId);
         if (!problem || !problem.testCases || problem.testCases.length === 0) {
           throw new Error('No test cases found for this problem');
         }
-        // For "Run Code", only use visible test cases (not hidden ones)
         casesToRun = problem.testCases.filter((testCase: any) => !testCase.isHidden);
         console.log(
           `[MAIN-SERVER] Running ${casesToRun.length} visible test cases out of ${problem.testCases.length} total`
@@ -241,9 +253,9 @@ export async function runProblemCode(req: AuthRequest, res: Response) {
     console.log(`✅ [MAIN-SERVER] Running ${casesToRun.length} visible test cases for ${language} code`);
 
     // Use the main server's execution service
+    const executionService = await executionServicePromise;
     const result = await executionService.executeWithTestCases(code, language, casesToRun);
 
-    // Format the response to match the expected format
     const response = {
       results: result.testResults.map((testResult: any, index: number) => ({
         status: testResult.error ? 'error' : testResult.passed ? 'success' : 'failed',
@@ -294,10 +306,9 @@ export async function runProblemCodeWithCustomInput(req: AuthRequest, res: Respo
 
     console.log(`✅ [MAIN-SERVER] Executing ${language} code with custom input`);
 
-    // Use the execution service for custom input
+    const executionService = await executionServicePromise;
     const result = await executionService.executeWithCustomInput(code, language, customInput);
 
-    // Format the response
     const response = {
       status: result.error ? 'error' : 'success',
       output: result.output,
@@ -318,4 +329,4 @@ export async function runProblemCodeWithCustomInput(req: AuthRequest, res: Respo
       output: error.message,
     });
   }
-} 
+}

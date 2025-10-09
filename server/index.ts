@@ -67,7 +67,7 @@ app.get('/', (req, res) => {
   res.status(200).json({ 
     status: 'API Server Running', 
     timestamp: new Date().toISOString(),
-    port: process.env.PORT || '3000',
+    port: process.env.PORT || '3001',
     environment: process.env.NODE_ENV || 'development'
   });
 });
@@ -99,8 +99,8 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 
 (async () => {
   // Create a basic HTTP server
-  const port = parseInt(process.env.PORT || '3000', 10);
-  const host = '0.0.0.0'; // Bind to all interfaces for accessibility
+  const port = parseInt(process.env.PORT || '3001', 10);
+  const host = 'localhost'; // Bind to all interfaces for accessibility
   
   // Start listening
   app.listen(port, host, () => {

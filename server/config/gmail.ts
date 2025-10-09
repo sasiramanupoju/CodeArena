@@ -10,10 +10,10 @@ export interface GmailAPIConfig {
 export const gmailConfig = {
   // Local Development (Gmail)
   local: {
-    clientId: process.env.GMAIL_CLIENT_ID || 'your-gmail-client-id',
-    clientSecret: process.env.GMAIL_CLIENT_SECRET || 'your-gmail-client-secret',
-    refreshToken: process.env.GMAIL_REFRESH_TOKEN || 'your-gmail-refresh-token',
-    userEmail: process.env.GMAIL_USER_EMAIL || 'team.codeareena@gmail.com'
+    clientId: process.env.GMAIL_CLIENT_ID || '524898025855-g1n4oa8h1nu3mnc96c7aeotroilgi1bv.apps.googleusercontent.com',
+    clientSecret: process.env.GMAIL_CLIENT_SECRET || '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',
+    refreshToken: process.env.GMAIL_REFRESH_TOKEN || '1//040Hh7HnEhfKlCgYIARAAGAQSNwF-L9IrcLCow4qvS1PFfEYoyrLcBoFkhB_YjH39cPe2nMx-kWOKh_veNvpxUG08kU3IpYTdiM4',
+    userEmail: process.env.GMAIL_USER_EMAIL || 'codearena@gmail.com'
   } as GmailAPIConfig,
   
   // Railway Production (Gmail API)

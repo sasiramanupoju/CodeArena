@@ -32,21 +32,26 @@ export class ExecutionService {
   };
 
   private readonly DOCKER_CONTAINERS: Record<string, string> = {
-    'python': 'execution-system-python-1',
-    'javascript': 'execution-system-javascript-1',
-    'typescript': 'execution-system-javascript-1',
-    'java': 'execution-system-java-1',
-    'cpp': 'execution-system-cpp-1',
-    'c': 'execution-system-c-1'
+    'python': 'execution-system-python-executor-1',
+    'javascript': 'execution-system-javascript-executor-1',
+    'typescript': 'execution-system-javascript-executor-1',
+    'java': 'execution-system-java-executor-1',
+    'cpp': 'execution-system-cpp-executor-1',
+    'c': 'execution-system-c-executor-1'
   };
 
-  constructor() {
-    // Log the temp directory path for debugging
+  // Static initialization method that returns the instance
+  public static async init(): Promise<ExecutionService> {
+    const service = new ExecutionService();
+    // This is the CRITICAL part - we await the setup here.
+    await service.ensureTempDir();
+    await service.cleanupExistingFiles();
+    return service;
+  }
+
+  // The constructor should not perform async operations.
+  private constructor() {
     console.log(`[EXEC-SERVICE] 🗂️ Temp directory path: ${this.TEMP_DIR}`);
-    
-    // Ensure temp directory exists and clean it on startup
-    this.ensureTempDir();
-    this.cleanupExistingFiles();
   }
 
   private async ensureTempDir() {
@@ -132,41 +137,26 @@ export class ExecutionService {
     }
   }
 
-  // Enhanced cleanup method to remove ALL temporary files for all languages
   public async cleanupAllTempFiles(): Promise<void> {
     try {
       console.log(`[EXEC-SERVICE] 🧹 Starting comprehensive temp directory cleanup...`);
       console.log(`[EXEC-SERVICE] 🧹 Target directory: ${this.TEMP_DIR}`);
       
-      // Get all files in the temp directory
       const files = await fs.readdir(this.TEMP_DIR);
       console.log(`[EXEC-SERVICE] 🧹 Found ${files.length} files in temp directory:`, files);
       
-      // Files to clean up for each language
       const cleanupPatterns = [
-        // Python files
-        /^code.*\.py$/,
-        // JavaScript/TypeScript files
-        /^code.*\.js$/,
-        /^code.*\.ts$/,
-        // Java files
-        /^Solution.*\.java$/,
-        /^Solution.*\.class$/,
-        // C/C++ files
-        /^code.*\.cpp$/,
-        /^code.*\.c$/,
-        /^exec.*$/, // Executables
-        // Input files
+        /^code.*\.py$/, /^code.*\.js$/, /^code.*\.ts$/,
+        /^Solution.*\.java$/, /^Solution.*\.class$/,
+        /^code.*\.cpp$/, /^code.*\.c$/,
+        /^exec.*$/, 
         /^input.*\.txt$/,
-        // Any other temporary files
-        /^temp.*$/,
-        /^.*\.tmp$/
+        /^temp.*$/, /^.*\.tmp$/
       ];
       
       let cleanedCount = 0;
       
       for (const file of files) {
-        // Check if file matches any cleanup pattern
         const shouldClean = cleanupPatterns.some(pattern => pattern.test(file));
         
         if (shouldClean) {
@@ -174,7 +164,6 @@ export class ExecutionService {
             const filePath = path.join(this.TEMP_DIR, file);
             const stats = await fs.stat(filePath);
             
-            // Only delete files, not directories
             if (stats.isFile()) {
               await fs.unlink(filePath);
               console.log(`[EXEC-SERVICE] 🧹 Cleaned up: ${file}`);
@@ -203,7 +192,6 @@ export class ExecutionService {
       throw new Error(`Unsupported language: ${language}`);
     }
 
-    // First, copy the code file into the container
     const copyArgs = ['cp', `${this.TEMP_DIR}/${filename}`, `${containerName}:/tmp/${filename}`];
     console.log(`[DOCKER-EXECUTOR] 📋 Copying file to container: docker ${copyArgs.join(' ')}`);
     
@@ -225,13 +213,11 @@ export class ExecutionService {
       throw error;
     }
 
-    // Use docker exec to run code in existing container
     const dockerArgs = [
       'exec',
       containerName
     ];
 
-    // Commands to run inside container
     const commands = {
       python: ['python3', `/tmp/${filename}`],
       javascript: ['node', `/tmp/${filename}`],
@@ -249,7 +235,6 @@ export class ExecutionService {
       console.log(`[DOCKER-EXECUTOR] 📄 Creating input file: ${inputFile}`);
       await this.writeFile(input, inputFile);
       
-      // Copy input file to container
       const copyInputArgs = ['cp', `${this.TEMP_DIR}/${inputFile}`, `${containerName}:/tmp/${inputFile}`];
       console.log(`[DOCKER-EXECUTOR] 📋 Copying input file: docker ${copyInputArgs.join(' ')}`);
       
@@ -266,18 +251,16 @@ export class ExecutionService {
         copyInputProcess.on('error', reject);
       });
       
-      // For input, we need to pipe it to the command
       if (language === 'python' || language === 'javascript' || language === 'typescript') {
         dockerArgs.push('sh', '-c', `${command.join(' ')} < /tmp/${inputFile}`);
       } else {
         dockerArgs.push('sh', '-c', `cd /tmp && ${command.join(' ')} < /tmp/${inputFile}`);
       }
-          } else {
+    } else {
         console.log(`[DOCKER-EXECUTOR] ⚠️ No input provided, running without input`);
         dockerArgs.push(...command);
       }
 
-    // LOG THE DOCKER COMMAND BEING EXECUTED
     console.log(`[DOCKER-EXECUTOR] 🐳 Running Docker command: docker ${dockerArgs.join(' ')}`);
     console.log(`[DOCKER-EXECUTOR] 📁 Using container: ${containerName}`);
     console.log(`[DOCKER-EXECUTOR] 📄 Code file: ${filename}`);
@@ -298,7 +281,7 @@ export class ExecutionService {
 
       docker.on('close', (code) => {
         const runtime = Date.now() - startTime;
-        const memory = 0; // TODO: Parse memory usage from container stats
+        const memory = 0; 
 
         console.log(`[DOCKER-EXECUTOR] ✅ Docker execution completed in ${runtime}ms with exit code: ${code}`);
         console.log(`[DOCKER-EXECUTOR] 📤 STDOUT:`, stdout.slice(0, 200));
@@ -328,7 +311,6 @@ export class ExecutionService {
         reject(err);
       });
 
-      // Set timeout
       setTimeout(() => {
         console.log(`[DOCKER-EXECUTOR] ⏰ Docker execution timed out after 15s`);
         docker.kill();
@@ -337,14 +319,12 @@ export class ExecutionService {
     });
   }
 
-  // Optimized method for test cases that reuses one input file
   private async executeInDockerOptimized(language: string, filename: string, input?: string): Promise<ExecutionResult> {
     const containerName = this.DOCKER_CONTAINERS[language];
     if (!containerName) {
       throw new Error(`Unsupported language: ${language}`);
     }
 
-    // First, copy the code file into the container
     const copyArgs = ['cp', `${this.TEMP_DIR}/${filename}`, `${containerName}:/tmp/${filename}`];
     console.log(`[DOCKER-EXECUTOR] 📋 Copying file to container (OPTIMIZED): docker ${copyArgs.join(' ')}`);
     
@@ -366,13 +346,11 @@ export class ExecutionService {
       throw error;
     }
 
-    // Use docker exec to run code in existing container
     const dockerArgs = [
       'exec',
       containerName
     ];
 
-    // Commands to run inside container
     const commands = {
       python: ['python3', `/tmp/${filename}`],
       javascript: ['node', `/tmp/${filename}`],
@@ -384,14 +362,11 @@ export class ExecutionService {
 
     const command = commands[language as keyof typeof commands];
     
-    // Use a fixed input file name for this submission
     const inputFile = 'input.txt';
     
     if (input !== undefined && input !== null) {
-      // Rewrite the input file content for this test case
       await this.writeFile(input, inputFile);
       
-      // Copy input file to container
       const copyInputArgs = ['cp', `${this.TEMP_DIR}/${inputFile}`, `${containerName}:/tmp/${inputFile}`];
       console.log(`[DOCKER-EXECUTOR] 📋 Copying input file (OPTIMIZED): docker ${copyInputArgs.join(' ')}`);
       
@@ -408,7 +383,6 @@ export class ExecutionService {
         copyInputProcess.on('error', reject);
       });
       
-      // For input, we need to pipe it to the command
       if (language === 'python' || language === 'javascript' || language === 'typescript') {
         dockerArgs.push('sh', '-c', `${command.join(' ')} < /tmp/${inputFile}`);
       } else {
@@ -418,7 +392,6 @@ export class ExecutionService {
       dockerArgs.push(...command);
     }
 
-    // LOG THE DOCKER COMMAND BEING EXECUTED (OPTIMIZED VERSION)
     console.log(`[DOCKER-EXECUTOR] 🐳 Running Docker command (OPTIMIZED): docker ${dockerArgs.join(' ')}`);
     console.log(`[DOCKER-EXECUTOR] 📁 Using container: ${containerName}`);
     console.log(`[DOCKER-EXECUTOR] 📄 Code file: ${filename}`);
@@ -441,7 +414,7 @@ export class ExecutionService {
 
         docker.on('close', (code) => {
           const runtime = Date.now() - startTime;
-          const memory = 0; // TODO: Parse memory usage from container stats
+          const memory = 0;
 
           console.log(`[DOCKER-EXECUTOR] ✅ Docker execution completed in ${runtime}ms with exit code: ${code}`);
           console.log(`[DOCKER-EXECUTOR] 📤 STDOUT:`, stdout.slice(0, 200));
@@ -471,7 +444,6 @@ export class ExecutionService {
           reject(err);
         });
 
-        // Set timeout
         setTimeout(() => {
           console.log(`[DOCKER-EXECUTOR] ⏰ Docker execution timed out after 15s (OPTIMIZED)`);
           docker.kill();
@@ -532,7 +504,6 @@ export class ExecutionService {
     const filename = this.getFilename(language);
     const filesToCleanup = [filename];
 
-    // Prefer remote HTTP executor if configured (Railway-compatible)
     if (process.env.EXECUTION_API_URL) {
       return this.executeRemote(language, code, input);
     }
@@ -553,7 +524,6 @@ export class ExecutionService {
         path: error.path
       });
       
-      // Return the error instead of falling back silently
       return {
         output: '',
         error: `Docker execution failed: ${error.message}`,
@@ -561,11 +531,9 @@ export class ExecutionService {
         memory: 0
       };
     } finally {
-      // Always clean up ALL temp files after execution
       await this.cleanupAllTempFiles();
       console.log(`[EXEC-SERVICE] 🧹 Cleaned up ALL temp files after single execution`);
       
-      // Also clean up any leftover files in temp directory
       try {
         const tempFiles = await fs.readdir(this.TEMP_DIR);
         const filesToRemove = tempFiles.filter((file: string) => 
@@ -611,7 +579,6 @@ export class ExecutionService {
     console.log(`[EXEC-SERVICE] 🧪 Running test cases...`);
     console.log(`[EXEC-SERVICE] Number of test cases:`, testCases.length);
     
-    // If remote executor is configured, run all test cases via HTTP (Railway-friendly)
     if (process.env.EXECUTION_API_URL) {
       const testResults: TestCaseResult[] = [];
       let maxRuntime = 0;
@@ -698,16 +665,13 @@ export class ExecutionService {
       for (const testCase of testCases) {
         try {
           console.log(`[EXEC-SERVICE] Running test case with input:`, testCase.input);
-          // Use the optimized method that creates one input file per submission
           const result = await this.executeInDockerOptimized(language, filename, testCase.input);
           
-          // Check if Docker execution failed
           if (result.error) {
             console.error(`[EXEC-SERVICE] ❌ Docker execution failed for test case:`, result.error);
             throw new Error(`Docker execution failed: ${result.error}`);
           }
           
-          // Compare output
           const actualOutput = (result.output || '').trim();
           const expectedOutput = (testCase.expectedOutput || '').trim();
           const passed = actualOutput === expectedOutput;
@@ -719,7 +683,6 @@ export class ExecutionService {
             error: result.error
           });
 
-          // Update counters
           if (testCase.isHidden) {
             hiddenTotal++;
             if (passed) hiddenPassed++;
@@ -728,11 +691,9 @@ export class ExecutionService {
             if (passed) visiblePassed++;
           }
 
-          // Update stats
           maxRuntime = Math.max(maxRuntime, result.runtime);
           maxMemory = Math.max(maxMemory, result.memory);
 
-          // Store result
           testResults.push({
             passed,
             input: testCase.input,
@@ -765,16 +726,15 @@ export class ExecutionService {
         }
       }
     } finally {
-      // Clean up ALL files after the entire submission is complete
       await this.cleanupAllTempFiles();
       console.log(`[EXEC-SERVICE] 🧹 Cleaned up ALL temp files after submission`);
       
-      // Also clean up any leftover files in temp directory
       try {
         const tempFiles = await fs.readdir(this.TEMP_DIR);
         const filesToRemove = tempFiles.filter(file => 
           file.startsWith('code.') || 
           file.startsWith('input') || 
+          file.startsWith('exec') ||
           file.endsWith('.py') || 
           file.endsWith('.js') || 
           file.endsWith('.java') || 
@@ -832,7 +792,6 @@ export class ExecutionService {
   }> {
     console.log(`[EXEC-SERVICE] 🎯 Executing code with custom input for ${language}`);
     
-    // Use remote executor if configured
     if (process.env.EXECUTION_API_URL) {
       const result = await this.executeRemote(language, code, customInput);
       return {
@@ -845,11 +804,9 @@ export class ExecutionService {
     }
     
     try {
-      // Write code to file
       const filename = this.getFilename(language);
       await this.writeFile(code, filename);
       
-      // Execute with custom input
       const result = await this.executeInDocker(language, filename, customInput);
       
       return {
@@ -863,14 +820,13 @@ export class ExecutionService {
       console.error(`[EXEC-SERVICE] ❌ Custom input execution failed:`, error);
       throw error;
     } finally {
-      // Always clean up ALL temp files after custom input execution
       await this.cleanupAllTempFiles();
       console.log(`[EXEC-SERVICE] 🧹 Cleaned up ALL temp files after custom input execution`);
     }
   }
 } 
 
-// Create and export a singleton instance
-const executionService = new ExecutionService();
-export { executionService };
-export default executionService; 
+const executionServicePromise = ExecutionService.init();
+
+export { executionServicePromise };
+export default executionServicePromise;

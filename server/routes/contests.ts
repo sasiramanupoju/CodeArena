@@ -2,7 +2,7 @@
 
 import { Router, Request, Response } from 'express';
 import { contestStorage } from '../services/contestStorage';
-import { executionService } from '../services/executionService';
+import { executionServicePromise } from '../services/executionService';
 import { insertContestSchema, contestParticipantSchema, contestQuestionSchema } from '../shared-schema';
 import { protect } from '../middleware/auth';
 import type { AuthRequest } from '../middleware/auth';
@@ -39,7 +39,6 @@ router.post('/', protect, async (req: AuthRequest, res: Response) => {
       timeZone: contestData.timeZone
     });
     
-    // Validate time fields
     if (!contestData.startTime || !contestData.endTime) {
       return res.status(400).json({ 
         message: 'Start time and end time are required for contests',
@@ -50,7 +49,6 @@ router.post('/', protect, async (req: AuthRequest, res: Response) => {
       });
     }
     
-    // Ensure dates are properly parsed
     const startTime = new Date(contestData.startTime);
     const endTime = new Date(contestData.endTime);
     
@@ -66,14 +64,12 @@ router.post('/', protect, async (req: AuthRequest, res: Response) => {
       });
     }
     
-    // Calculate duration if not provided
     if (!contestData.duration) {
       const durationMs = endTime.getTime() - startTime.getTime();
-      contestData.duration = Math.ceil(durationMs / (1000 * 60)); // Convert to minutes
+      contestData.duration = Math.ceil(durationMs / (1000 * 60)); 
       console.log('[DEBUG] Calculated duration:', contestData.duration, 'minutes');
     }
     
-    // Create problem instances from selected problems
     const problemInstances = selectedProblems && selectedProblems.length > 0 
       ? await contestStorage.createContestProblemInstances(selectedProblems, `contest_${Date.now()}`)
       : [];
@@ -86,7 +82,6 @@ router.post('/', protect, async (req: AuthRequest, res: Response) => {
       createdBy: req.user.id
     });
 
-    // Check if contest has already ended by time and update accordingly
     const now = new Date();
     if (now > endTime) {
       await contestStorage.updateContestEndMethod(contest.id, 'time_expired');
@@ -101,7 +96,6 @@ router.post('/', protect, async (req: AuthRequest, res: Response) => {
   }
 });
 
-// Get all problems for contest creation
 router.get('/available-problems', protect, async (req: AuthRequest, res: Response) => {
   try {
     if (req.user?.role !== 'admin') {
@@ -115,7 +109,6 @@ router.get('/available-problems', protect, async (req: AuthRequest, res: Respons
   }
 });
 
-// Contests endpoint with participant counts (accessible at both /api/contests and /api/admin/contests)
 router.get('/', protect, async (req: AuthRequest, res: Response) => {
   try {
     console.log('🔐 [CONTEST-ROUTE] === ROUTE REACHED ===');
@@ -123,7 +116,6 @@ router.get('/', protect, async (req: AuthRequest, res: Response) => {
     console.log('🔐 [CONTEST-ROUTE] Request URL:', req.originalUrl);
     console.log('🔐 [CONTEST-ROUTE] Request headers:', req.headers);
     
-    // Check if this is an admin request by checking the URL path
     if (req.originalUrl.includes('/api/admin/contests')) {
       try {
         const contests = await contestStorage.getAllContests();
@@ -152,22 +144,19 @@ router.get('/', protect, async (req: AuthRequest, res: Response) => {
         res.status(500).json({ message: "Failed to fetch contests" });
       }
     } else {
-      // Regular contests endpoint for non-admin users
-  try {
-    const { status, type, visibility } = req.query;
-    const filters = {
-      status: status as string,
-      type: type as string,
-      visibility: visibility as string
-    };
+      try {
+        const { status, type, visibility } = req.query;
+        const filters = {
+          status: status as string,
+          type: type as string,
+          visibility: visibility as string
+        };
 
-    const contests = await contestStorage.getAllContests(filters);
-        
-        // Get user's contest enrollments
+        const contests = await contestStorage.getAllContests(filters);
+            
         const userEnrollments = await contestStorage.getUserContestEnrollments(req.user.id);
         const enrolledContestIds = new Set(userEnrollments.map(e => e.contestId));
-        
-        // Ensure all contests have updated rankings
+            
         for (const contest of contests) {
           try {
             await contestStorage.updateRankings(contest.id);
@@ -175,19 +164,15 @@ router.get('/', protect, async (req: AuthRequest, res: Response) => {
             console.error('Error updating rankings for contest:', contest.id, error);
           }
         }
-        
-        // Filter to only show enrolled contests for regular users
+            
         const enrolledContests = contests.filter(contest => enrolledContestIds.has(contest.id));
-        
-        // Add participant counts and enrollment status to enrolled contests only
+            
         const contestsWithParticipants = await Promise.all(
           enrolledContests.map(async (contest) => {
             try {
-              // Use the participants array stored in the contest document
               const participantCount = (contest.participants || []).length;
-              const isEnrolled = true; // All contests here are enrolled
-              
-              // Get user's progress in this contest
+              const isEnrolled = true; 
+                  
               let userProgress = null;
               try {
                 const enrollment = userEnrollments.find(e => e.contestId === contest.id);
@@ -200,7 +185,7 @@ router.get('/', protect, async (req: AuthRequest, res: Response) => {
               } catch (error) {
                 console.error('Error fetching user progress for contest:', contest.id, error);
               }
-              
+                  
               return {
                 ...contest,
                 participantCount: participantCount,
@@ -218,11 +203,11 @@ router.get('/', protect, async (req: AuthRequest, res: Response) => {
             }
           })
         );
-        
+            
         res.json(contestsWithParticipants);
-  } catch (error) {
-    console.error('Error fetching contests:', error);
-    res.status(500).json({ message: 'Failed to fetch contests' });
+      } catch (error) {
+        console.error('Error fetching contests:', error);
+        res.status(500).json({ message: 'Failed to fetch contests' });
       }
     }
   } catch (error) {
@@ -235,8 +220,6 @@ router.get('/', protect, async (req: AuthRequest, res: Response) => {
   }
 });
 
-
-
 router.get('/:contestId', async (req: Request, res: Response) => {
   try {
     const { contestId } = req.params;
@@ -246,18 +229,15 @@ router.get('/:contestId', async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Contest not found' });
     }
 
-    // Use the participants array stored in the contest document
     const participants = contest.participants || [];
     const participantCount = participants.length;
     
-    // If we need detailed participant info, fetch it
     let detailedParticipants = [];
     if (participants.length > 0) {
       try {
         detailedParticipants = await contestStorage.getContestParticipants(contestId);
       } catch (error) {
         console.error('Error fetching detailed participants for contest:', contestId, error);
-        // Continue with basic participant data
       }
     }
     
@@ -294,7 +274,6 @@ router.put('/:contestId', protect, async (req: AuthRequest, res: Response) => {
     
     let updates = { ...contestData };
     
-    // Validate time fields if they are being updated
     if (contestData.startTime || contestData.endTime) {
       const startTime = contestData.startTime ? new Date(contestData.startTime) : undefined;
       const endTime = contestData.endTime ? new Date(contestData.endTime) : undefined;
@@ -311,24 +290,19 @@ router.put('/:contestId', protect, async (req: AuthRequest, res: Response) => {
         return res.status(400).json({ message: 'Start time must be before end time' });
       }
       
-      // Update the time fields with parsed dates
       if (startTime) updates.startTime = startTime;
       if (endTime) updates.endTime = endTime;
       
-      // Recalculate duration if both times are provided
       if (startTime && endTime && !contestData.duration) {
         const durationMs = endTime.getTime() - startTime.getTime();
-        updates.duration = Math.ceil(durationMs / (1000 * 60)); // Convert to minutes
+        updates.duration = Math.ceil(durationMs / (1000 * 60)); 
         console.log('[DEBUG] Recalculated duration:', updates.duration, 'minutes');
       }
       
-      // Reset contestEndMethod when rescheduling (updating times)
-      // This allows rescheduled contests to be active again
       updates.contestEndMethod = null;
       console.log('[DEBUG] Contest rescheduled - resetting contestEndMethod to null');
     }
     
-    // Handle problem updates if selectedProblems are provided
     if (Array.isArray(selectedProblems) && selectedProblems.length > 0) {
       console.log('[DEBUG] Creating new problem instances for contest update');
       const problemInstances = await contestStorage.createContestProblemInstances(
@@ -345,13 +319,11 @@ router.put('/:contestId', protect, async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Contest not found' });
     }
 
-    // If contest was rescheduled (times updated), reset participant end methods
     if (contestData.startTime || contestData.endTime) {
       await contestStorage.updateAllParticipantsContestEndMethod(contestId, null);
       console.log('[DEBUG] Reset all participants contestEndMethod to null for rescheduled contest');
     }
 
-    // Check if contest has ended by time and update accordingly
     if (updates.endTime) {
       const now = new Date();
       const newEndTime = new Date(updates.endTime);
@@ -389,7 +361,6 @@ router.delete('/:contestId', protect, async (req: AuthRequest, res: Response) =>
   }
 });
 
-// Problem Management within Contests
 router.post('/:contestId/problems', protect, async (req: AuthRequest, res: Response) => {
   try {
     if (req.user?.role !== 'admin') {
@@ -467,7 +438,6 @@ router.delete('/:contestId/problems/:problemId', protect, async (req: AuthReques
 });
 
 // Participant Management
-// Add new endpoint to check if user is enrolled in contest
 router.get('/:contestId/participants/me', protect, async (req: AuthRequest, res: Response) => {
   try {
     const { contestId } = req.params;
@@ -491,7 +461,6 @@ router.get('/:contestId/participants/me', protect, async (req: AuthRequest, res:
   }
 });
 
-// Modify the existing register endpoint to support admin enrollment
 router.post('/:contestId/register', protect, async (req: AuthRequest, res: Response) => {
   try {
     const { contestId } = req.params;
@@ -520,7 +489,6 @@ router.post('/:contestId/register', protect, async (req: AuthRequest, res: Respo
 
     console.log('[DEBUG] Target user ID:', targetUserId);
 
-    // Check if contest exists
     const contest = await contestStorage.getContest(contestId);
     if (!contest) {
       return res.status(404).json({ message: 'Contest not found' });
@@ -539,19 +507,15 @@ router.post('/:contestId/register', protect, async (req: AuthRequest, res: Respo
       });
     }
 
-    // Use appropriate enrollment method based on who is enrolling
     let participant;
     if (isAdmin && userId && userId !== 'self') {
-      // Admin enrolling another user
       participant = await contestStorage.registerParticipantByAdmin(contestId, targetUserId);
     } else {
-      // Self-enrollment
       participant = await contestStorage.registerParticipant(contestId, targetUserId);
     }
     
     console.log('[DEBUG] Participant registered successfully:', participant.id);
     
-    // Return enriched participant data with user information
     const user = await contestStorage.getUser(targetUserId);
     const enrichedParticipant = {
       ...participant,
@@ -600,7 +564,6 @@ router.get('/:contestId/participants', protect, async (req: AuthRequest, res: Re
 
     const { contestId } = req.params;
     const participants = await contestStorage.getContestParticipants(contestId);
-    // Ensure a consistent shape with user name fields to avoid UI fallback to raw id
     const normalized = (participants || []).map((p: any) => ({
       ...p,
       user: p.user ? {
@@ -617,7 +580,6 @@ router.get('/:contestId/participants', protect, async (req: AuthRequest, res: Re
   }
 });
 
-// Remove participant endpoint
 router.delete('/:contestId/participants/:userId', protect, async (req: AuthRequest, res: Response) => {
   try {
     if (req.user?.role !== 'admin') {
@@ -649,7 +611,6 @@ router.post('/:contestId/submit', protect, async (req: AuthRequest, res: Respons
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    // Verify participant is registered
     const participants = await contestStorage.getContestParticipants(contestId);
     const isRegistered = participants.some(p => p.userId === userId);
     
@@ -657,7 +618,6 @@ router.post('/:contestId/submit', protect, async (req: AuthRequest, res: Respons
       return res.status(403).json({ message: 'Must be registered for contest' });
     }
 
-    // Get the problem and its test cases
     const contest = await contestStorage.getContest(contestId);
     if (!contest) {
       return res.status(404).json({ message: 'Contest not found' });
@@ -668,7 +628,6 @@ router.post('/:contestId/submit', protect, async (req: AuthRequest, res: Respons
       return res.status(404).json({ message: 'Problem not found in contest' });
     }
 
-    // Get test cases from the problem
     let testCases = [];
     if (problem.testCases && Array.isArray(problem.testCases)) {
       testCases = problem.testCases;
@@ -679,20 +638,17 @@ router.post('/:contestId/submit', protect, async (req: AuthRequest, res: Respons
     if (testCases.length === 0) {
       return res.status(400).json({ message: 'No test cases available for this problem' });
     }
-
-    // Execute code against all test cases (including hidden ones)
+    
+    const executionService = await executionServicePromise;
     const executionResult = await executionService.executeWithTestCases(code, language, testCases);
 
-    // Calculate results based on actual test case execution
     const passedCount = executionResult.testResults.filter((r: any) => r.passed).length;
     const totalTestCases = executionResult.testResults.length;
     const allPassed = executionResult.allTestsPassed;
     const status = allPassed ? 'accepted' : passedCount > 0 ? 'partial' : 'wrong_answer';
     
-    // Calculate points based on contest scoring (assuming 100 points per problem)
     const points = allPassed ? 100 : Math.floor((passedCount / totalTestCases) * 100);
     
-    // Get runtime and memory from execution results
     const runtime = executionResult.testResults.reduce((sum: number, r: any) => sum + (r.runtime || 0), 0) / totalTestCases;
     const memory = executionResult.testResults.reduce((sum: number, r: any) => Math.max(sum, r.memory || 0), 0);
 
@@ -712,7 +668,6 @@ router.post('/:contestId/submit', protect, async (req: AuthRequest, res: Respons
       testResults: executionResult.testResults
     });
 
-    // Return detailed results including test case information
     res.json({
       ...submission,
       testResults: executionResult.testResults,
@@ -742,7 +697,6 @@ router.post('/:contestId/problems/:problemId/submit', protect, async (req: AuthR
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    // Verify registration
     const participants = await contestStorage.getContestParticipants(contestId);
     const isRegistered = participants.some(p => p.userId === userId);
     if (!isRegistered) {
@@ -752,7 +706,6 @@ router.post('/:contestId/problems/:problemId/submit', protect, async (req: AuthR
 
     console.log(`[CONTEST-SUBMIT] User ${userId} is registered for contest ${contestId}`);
 
-    // Get the problem and its test cases
     const contest = await contestStorage.getContest(contestId);
     if (!contest) {
       return res.status(404).json({ message: 'Contest not found' });
@@ -760,10 +713,9 @@ router.post('/:contestId/problems/:problemId/submit', protect, async (req: AuthR
 
     const problem = contest.problems?.find(p => p.id === problemId);
     if (!problem) {
-      return res.status(404).json({ message: 'Problem not found in contest' });
+      return res.status(404).json({ message: 'Problem not found' });
     }
 
-    // Get test cases from the problem
     let testCases = [];
     if (problem.testCases && Array.isArray(problem.testCases)) {
       testCases = problem.testCases;
@@ -775,19 +727,16 @@ router.post('/:contestId/problems/:problemId/submit', protect, async (req: AuthR
       return res.status(400).json({ message: 'No test cases available for this problem' });
     }
 
-    // Execute code against all test cases (including hidden ones)
+    const executionService = await executionServicePromise;
     const executionResult = await executionService.executeWithTestCases(code, language, testCases);
 
-    // Calculate results based on actual test case execution
     const passedCount = executionResult.testResults.filter((r: any) => r.passed).length;
     const totalTestCases = executionResult.testResults.length;
     const allPassed = executionResult.allTestsPassed;
     const status = allPassed ? 'accepted' : passedCount > 0 ? 'partial' : 'wrong_answer';
     
-    // Calculate points based on contest scoring (assuming 100 points per problem)
     const points = allPassed ? 100 : Math.floor((passedCount / totalTestCases) * 100);
     
-    // Get runtime and memory from execution results
     const runtime = executionResult.testResults.reduce((sum: number, r: any) => sum + (r.runtime || 0), 0) / totalTestCases;
     const memory = executionResult.testResults.reduce((sum: number, r: any) => Math.max(sum, r.memory || 0), 0);
 
@@ -807,7 +756,6 @@ router.post('/:contestId/problems/:problemId/submit', protect, async (req: AuthR
       testResults: executionResult.testResults
     });
 
-    // Return detailed results including test case information
     console.log(`[CONTEST-SUBMIT] Successfully submitted solution: submissionId=${submission.id}, status=${submission.status}, points=${points}, autoSubmitted=${autoSubmitted}`);
     
     res.json({
@@ -836,7 +784,6 @@ router.get('/:contestId/submissions', protect, async (req: AuthRequest, res: Res
     const { contestId } = req.params;
     const userId = req.query.userId as string;
 
-    // Admins can see all submissions, users can only see their own
     if (userId && req.user?.role !== 'admin' && req.user?.id !== userId) {
       return res.status(403).json({ message: 'Access denied' });
     }
@@ -849,13 +796,11 @@ router.get('/:contestId/submissions', protect, async (req: AuthRequest, res: Res
   }
 });
 
-// Leaderboard & Rankings
 router.get('/:contestId/leaderboard', async (req: Request, res: Response) => {
   try {
     const { contestId } = req.params;
     const leaderboard = await contestStorage.generateLeaderboard(contestId);
 
-    // Normalize response shape expected by client
     const normalized = (leaderboard || []).map((e: any) => ({
       rank: e.rank,
       userId: e.userId,
@@ -891,7 +836,6 @@ router.post('/:contestId/update-rankings', protect, async (req: AuthRequest, res
   }
 });
 
-// Analytics
 router.get('/:contestId/analytics', protect, async (req: AuthRequest, res: Response) => {
   try {
     if (req.user?.role !== 'admin') {
@@ -907,7 +851,6 @@ router.get('/:contestId/analytics', protect, async (req: AuthRequest, res: Respo
   }
 });
 
-// Q&A System
 router.post('/:contestId/questions', protect, async (req: AuthRequest, res: Response) => {
   try {
     const { contestId } = req.params;
@@ -971,11 +914,10 @@ router.put('/questions/:questionId/answer', protect, async (req: AuthRequest, re
     res.json({ message: 'Question answered successfully' });
   } catch (error) {
     console.error('Error answering question:', error);
-    res.status(400).json({ message: 'Failed to answer question', error: error.message });
+    res.status(400).json({ message: 'Failed to answer question', error: (error as any).message });
   }
 });
 
-// Announcements
 router.post('/:contestId/announcements', protect, async (req: AuthRequest, res: Response) => {
   try {
     if (req.user?.role !== 'admin') {
@@ -994,7 +936,7 @@ router.post('/:contestId/announcements', protect, async (req: AuthRequest, res: 
     res.json({ message: 'Announcement added successfully' });
   } catch (error) {
     console.error('Error adding announcement:', error);
-    res.status(400).json({ message: 'Failed to add announcement', error: error.message });
+    res.status(400).json({ message: 'Failed to add announcement', error: (error as any).message });
   }
 });
 
@@ -1009,7 +951,6 @@ router.get('/:contestId/announcements', async (req: Request, res: Response) => {
   }
 });
 
-// Add QR code generation endpoint for contests
 router.get('/:contestId/qr-code', protect, async (req: AuthRequest, res: Response) => {
   try {
     if (req.user?.role !== 'admin') {
@@ -1030,7 +971,6 @@ router.get('/:contestId/qr-code', protect, async (req: AuthRequest, res: Respons
   }
 });
 
-// Code execution for contest problems
 router.post('/execute', protect, async (req: AuthRequest, res: Response) => {
   try {
     const { code, language, input } = req.body;
@@ -1046,8 +986,8 @@ router.post('/execute', protect, async (req: AuthRequest, res: Response) => {
     console.log(`📥 [CONTEST-EXEC] Input length: ${input ? input.length : 0}`);
     console.log(`📥 [CONTEST-EXEC] Input type: ${typeof input}`);
     
-    // Import the execution service
-    const { executionService } = await import('../services/executionService');
+    // CRITICAL FIX: Await the promise to get the service instance
+    const executionService = await executionServicePromise;
     
     // Use the same Docker execution service as assignments
     const result = await executionService.executeCode(code, language, input);
@@ -1076,7 +1016,6 @@ router.post('/execute', protect, async (req: AuthRequest, res: Response) => {
   }
 });
 
-// Custom input execution for contest problems
 router.post('/run-custom-input', protect, async (req: AuthRequest, res: Response) => {
   try {
     const { code, language, customInput } = req.body;
@@ -1091,8 +1030,8 @@ router.post('/run-custom-input', protect, async (req: AuthRequest, res: Response
     console.log(`📝 [CONTEST-CUSTOM-EXEC] Code length: ${code.length} characters`);
     console.log(`📥 [CONTEST-CUSTOM-EXEC] Custom input: "${customInput}"`);
     
-    // Import the execution service
-    const { executionService } = await import('../services/executionService');
+    // CRITICAL FIX: Await the promise to get the service instance
+    const executionService = await executionServicePromise;
     
     // Use the same Docker execution service as assignments
     const result = await executionService.executeCode(code, language, customInput);
@@ -1123,7 +1062,49 @@ router.post('/run-custom-input', protect, async (req: AuthRequest, res: Response
   }
 });
 
-// Get contest standings with detailed stats
+router.post('/run-test-cases', protect, async (req: AuthRequest, res: Response) => {
+  try {
+    const { code, language, problemId } = req.body;
+
+    if (!code || !language || !problemId) {
+      return res.status(400).json({ message: "Code, language, and problemId are required." });
+    }
+
+    console.log(`🚀 [CONTEST-RUN-TESTS] Executing ${language} code with test cases for contest problem: ${problemId}`);
+    
+    const problem = await contestStorage.getProblem(problemId);
+    if (!problem) {
+      return res.status(404).json({ message: 'Problem not found.' });
+    }
+    
+    const testCases = problem.testCases || [];
+    
+    if (testCases.length === 0) {
+      return res.status(400).json({ message: 'No test cases available for this problem' });
+    }
+    
+    const executionService = await executionServicePromise;
+    const executionResult = await executionService.executeWithTestCases(code, language, testCases);
+    
+    res.json({ 
+      status: 'success',
+      results: executionResult.testResults,
+      summary: {
+        totalTestCases: executionResult.testResults.length,
+        passed: executionResult.testResults.filter(r => r.passed).length
+      }
+    });
+  } catch (error) {
+    console.error("Error executing contest code with test cases:", error);
+    res.status(500).json({ 
+      status: 'error',
+      error: 'Internal server error',
+      output: (error as any).message || 'Execution failed'
+    });
+  }
+});
+
+
 router.get('/:contestId/standings', protect, async (req: AuthRequest, res: Response) => {
   try {
     const contestId = req.params.contestId;
@@ -1134,7 +1115,6 @@ router.get('/:contestId/standings', protect, async (req: AuthRequest, res: Respo
       return res.status(404).json({ message: "Contest not found" });
     }
 
-    // Add problem-specific stats to each leaderboard entry
     const detailedStandings = await Promise.all(
       leaderboard.map(async (entry) => {
         const userSubmissions = await contestStorage.getParticipantSubmissions(contestId, entry.userId);
@@ -1156,7 +1136,6 @@ router.get('/:contestId/standings', protect, async (req: AuthRequest, res: Respo
           };
         });
 
-        // Resolve participant name
         let displayName = entry.username || entry.userId;
         try {
           const userDoc = await contestStorage.getUser(entry.userId);
@@ -1167,16 +1146,22 @@ router.get('/:contestId/standings', protect, async (req: AuthRequest, res: Respo
             displayName = full || userDoc.username || userDoc.name || userDoc.email || displayName;
           }
         } catch (e) {
-          // fallback to existing username
         }
 
+        const participant = userIdToParticipant[entry.userId];
+        const registrationTime = participant?.registrationTime ? new Date(participant.registrationTime as any) : null;
+        const rawLast = entry.lastSubmissionTime ? new Date(entry.lastSubmissionTime as any) : null;
+        const effectiveLast = rawLast ? new Date(Math.min(rawLast.getTime(), endTime.getTime())) : (hasEnded ? endTime : now);
+        const timeSpentSeconds = registrationTime ? Math.max(0, Math.floor((effectiveLast.getTime() - registrationTime.getTime()) / 1000)) : 0;
+        
         return {
           ...entry,
+          averageRuntime,
+          averageMemory,
           problemStats,
-          totalAttempts: userSubmissions.length,
-          correctSubmissions: userSubmissions.filter(s => s.status === 'accepted').length,
-          wrongSubmissions: userSubmissions.filter(s => s.status === 'wrong_answer').length,
-          displayName
+          displayName,
+          submittedAt: entry.lastSubmissionTime,
+          timeSpentSeconds
         };
       })
     );
@@ -1198,12 +1183,10 @@ router.get('/:contestId/standings', protect, async (req: AuthRequest, res: Respo
   }
 });
 
-// Get contest final results
 router.get('/:contestId/results', protect, async (req: AuthRequest, res: Response) => {
   try {
     const contestId = req.params.contestId;
     
-    // Check if contest has ended
     const contest = await contestStorage.getContest(contestId);
     if (!contest) {
       return res.status(404).json({ message: "Contest not found" });
@@ -1213,24 +1196,19 @@ router.get('/:contestId/results', protect, async (req: AuthRequest, res: Respons
     const endTime = new Date(contest.endTime);
     const hasEnded = now > endTime;
     if (!hasEnded) {
-      // Allow fetching results but mark as provisional
     }
     
-    // Generate final results
     const leaderboard = await contestStorage.generateLeaderboard(contestId);
-    // Fetch participants to get registrationTime
     const participants = await contestStorage.getContestParticipants(contestId);
     const userIdToParticipant: Record<string, any> = {};
     for (const p of participants) {
       userIdToParticipant[p.userId] = p;
     }
     
-    // Transform to results format with additional statistics
     const results = await Promise.all(
       leaderboard.map(async (entry) => {
         const submissions = await contestStorage.getParticipantSubmissions(contestId, entry.userId);
         
-        // Calculate problem-specific results
         const problemResults: Record<string, any> = {};
         for (const problem of contest.problems) {
           const problemSubmissions = submissions.filter(s => s.problemId === problem.id);
@@ -1247,7 +1225,6 @@ router.get('/:contestId/results', protect, async (req: AuthRequest, res: Respons
           };
         }
         
-        // Calculate averages
         const acceptedSubmissions = submissions.filter(s => s.status === 'accepted');
         const averageRuntime = acceptedSubmissions.length > 0 
           ? acceptedSubmissions.reduce((sum, s) => sum + (s.runtime || 0), 0) / acceptedSubmissions.length 
@@ -1256,7 +1233,6 @@ router.get('/:contestId/results', protect, async (req: AuthRequest, res: Respons
           ? acceptedSubmissions.reduce((sum, s) => sum + (s.memory || 0), 0) / acceptedSubmissions.length 
           : 0;
         
-        // Resolve participant name
         let displayName = entry.username || entry.userId;
         try {
           const userDoc = await contestStorage.getUser(entry.userId);
@@ -1267,10 +1243,8 @@ router.get('/:contestId/results', protect, async (req: AuthRequest, res: Respons
             displayName = full || userDoc.username || userDoc.name || userDoc.email || displayName;
           }
         } catch (e) {
-          // fallback to existing username
         }
 
-        // Compute accurate time spent from registration to last activity, clamped to contest end
         const participant = userIdToParticipant[entry.userId];
         const registrationTime = participant?.registrationTime ? new Date(participant.registrationTime as any) : null;
         const rawLast = entry.lastSubmissionTime ? new Date(entry.lastSubmissionTime as any) : null;
@@ -1296,7 +1270,6 @@ router.get('/:contestId/results', protect, async (req: AuthRequest, res: Respons
   }
 });
 
-// Get contest leaderboard
 router.get('/:contestId/leaderboard', protect, async (req: AuthRequest, res: Response) => {
   try {
     const contestId = req.params.contestId;
@@ -1308,9 +1281,12 @@ router.get('/:contestId/leaderboard', protect, async (req: AuthRequest, res: Res
   }
 });
 
-// Get contest analytics
 router.get('/:contestId/analytics', protect, async (req: AuthRequest, res: Response) => {
   try {
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({ message: 'Admin access required' });
+    }
+
     const contestId = req.params.contestId;
     const analytics = await contestStorage.getContestAnalytics(contestId);
     res.json(analytics);
@@ -1320,7 +1296,6 @@ router.get('/:contestId/analytics', protect, async (req: AuthRequest, res: Respo
   }
 });
 
-// Get user progress in contest
 router.get('/:contestId/progress', protect, async (req: AuthRequest, res: Response) => {
   try {
     const contestId = req.params.contestId;
@@ -1339,7 +1314,6 @@ router.get('/:contestId/progress', protect, async (req: AuthRequest, res: Respon
     const participants = await contestStorage.getContestParticipants(contestId);
     const participant = participants.find(p => p.userId === userId);
 
-    // Calculate progress (case-insensitive status) & restrict to problems in this contest
     const acceptedAll = new Set<string>(
       submissions
         .filter(s => s.status?.toLowerCase?.() === 'accepted')
@@ -1355,7 +1329,6 @@ router.get('/:contestId/progress', protect, async (req: AuthRequest, res: Respon
       .filter(p => acceptedInContest.has(p.id))
       .reduce((sum, p) => sum + (p.points || 0), 0);
 
-    // Calculate time remaining
     const now = new Date();
     const endTime = new Date(contest.endTime);
     const timeRemaining = Math.max(0, endTime.getTime() - now.getTime());
@@ -1380,7 +1353,6 @@ router.get('/:contestId/progress', protect, async (req: AuthRequest, res: Respon
   }
 });
 
-// Get contest announcements
 router.get('/:contestId/announcements', protect, async (req: AuthRequest, res: Response) => {
   try {
     const contestId = req.params.contestId;
@@ -1392,7 +1364,6 @@ router.get('/:contestId/announcements', protect, async (req: AuthRequest, res: R
   }
 });
 
-// Manually end contest endpoint
 router.post('/:contestId/end', protect, async (req: AuthRequest, res: Response) => {
   try {
     const { contestId } = req.params;
@@ -1402,18 +1373,15 @@ router.post('/:contestId/end', protect, async (req: AuthRequest, res: Response) 
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    // Check if contest exists
     const contest = await contestStorage.getContest(contestId);
     if (!contest) {
       return res.status(404).json({ message: 'Contest not found' });
     }
 
-    // Check if contest has already ended
     const now = new Date();
     const endTime = new Date(contest.endTime);
     
     if (now > endTime) {
-      // Contest has already ended by time, update the end method
       await contestStorage.updateContestEndMethod(contestId, 'time_expired');
       return res.json({ 
         message: 'Contest has already ended by time',
@@ -1421,7 +1389,6 @@ router.post('/:contestId/end', protect, async (req: AuthRequest, res: Response) 
       });
     }
 
-    // Manually end the contest
     const success = await contestStorage.updateContestEndMethod(contestId, 'manually_ended');
     
     if (success) {
@@ -1438,7 +1405,6 @@ router.post('/:contestId/end', protect, async (req: AuthRequest, res: Response) 
   }
 });
 
-// Check and update expired contests endpoint
 router.post('/check-expired', protect, async (req: AuthRequest, res: Response) => {
   try {
     if (req.user?.role !== 'admin') {
@@ -1457,7 +1423,6 @@ router.post('/check-expired', protect, async (req: AuthRequest, res: Response) =
   }
 });
 
-// Auto-submit code without execution (for tab switching violations)
 router.post('/:contestId/problems/:problemId/auto-submit', protect, async (req: AuthRequest, res: Response) => {
   try {
     const { contestId, problemId } = req.params;
@@ -1470,7 +1435,6 @@ router.post('/:contestId/problems/:problemId/auto-submit', protect, async (req: 
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    // Verify registration
     const participants = await contestStorage.getContestParticipants(contestId);
     const isRegistered = participants.some(p => p.userId === userId);
     if (!isRegistered) {
@@ -1480,7 +1444,6 @@ router.post('/:contestId/problems/:problemId/auto-submit', protect, async (req: 
 
     console.log(`[AUTO-SUBMIT] User ${userId} is registered for contest ${contestId}`);
 
-    // Get the problem to verify it exists
     const contest = await contestStorage.getContest(contestId);
     if (!contest) {
       return res.status(404).json({ message: 'Contest not found' });
@@ -1491,21 +1454,20 @@ router.post('/:contestId/problems/:problemId/auto-submit', protect, async (req: 
       return res.status(404).json({ message: 'Problem not found' });
     }
 
-    // Create submission without execution - just save the code
     const submission = await contestStorage.submitSolution({
       contestId,
       problemId,
       userId,
       code,
       language,
-      status: 'auto_submitted', // Special status for auto-submitted code
+      status: 'auto_submitted', 
       runtime: 0,
       memory: 0,
       points: 0,
       submissionTime: new Date(),
       penalty: 0,
       isContestSubmission: true,
-      testResults: [] // No test results for auto-submissions
+      testResults: [] 
     });
 
     console.log(`[AUTO-SUBMIT] Successfully auto-submitted solution: submissionId=${submission.id}, status=${submission.status}`);
@@ -1532,7 +1494,6 @@ router.post('/:contestId/problems/:problemId/auto-submit', protect, async (req: 
   }
 });
 
-// End contest for user due to tab switching
 router.post('/:contestId/end-user', protect, async (req: AuthRequest, res: Response) => {
   try {
     const { contestId } = req.params;
@@ -1542,13 +1503,11 @@ router.post('/:contestId/end-user', protect, async (req: AuthRequest, res: Respo
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    // Check if contest exists
     const contest = await contestStorage.getContest(contestId);
     if (!contest) {
       return res.status(404).json({ message: 'Contest not found' });
     }
 
-    // Check if user is registered for the contest
     const participants = await contestStorage.getContestParticipants(contestId);
     const isRegistered = participants.some(p => p.userId === userId);
     
@@ -1556,7 +1515,6 @@ router.post('/:contestId/end-user', protect, async (req: AuthRequest, res: Respo
       return res.status(403).json({ message: 'Must be registered for contest' });
     }
 
-    // Update the user's contest end method and disqualify them due to tab switching
     const endMethodSuccess = await contestStorage.updateParticipantContestEndMethod(contestId, userId, 'manually_ended');
     const disqualifySuccess = await contestStorage.disqualifyParticipant(contestId, userId, 'Excessive tab switching detected');
     

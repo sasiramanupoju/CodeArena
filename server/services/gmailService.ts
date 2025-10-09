@@ -1,5 +1,3 @@
-// Successfully Implemented Gmail API Authentication
-
 import { google } from 'googleapis';
 import { getCurrentGmailConfig, GMAIL_SCOPES } from '../config/gmail';
 
@@ -14,11 +12,22 @@ export class GmailService {
 
   private initializeGmailAPI() {
     try {
+      // *** START DEBUG SECTION ***
+      console.log('[DEBUG] Gmail API Credentials from .env:');
+      console.log('CLIENT_ID:', this.config.clientId);
+      console.log('CLIENT_SECRET:', this.config.clientSecret);
+      console.log('REFRESH_TOKEN:', this.config.refreshToken);
+      console.log('USER_EMAIL:', this.config.userEmail);
+      // *** END DEBUG SECTION ***
+
       // Create OAuth2 client
       const oauth2Client = new google.auth.OAuth2(
         this.config.clientId,
         this.config.clientSecret,
-        'urn:ietf:wg:oauth:2.0:oob' // Redirect URI for installed applications
+        // *** CRITICAL CHANGE: Use the correct redirect URI for web applications ***
+        // This URI must be registered in the Google Cloud Console.
+        // It's typically the one used for the OAuth Playground to get a refresh token.
+        'https://developers.google.com/oauthplayground' 
       );
 
       // Set credentials using refresh token
@@ -377,4 +386,4 @@ export class GmailService {
   }
 }
 
-export const gmailService = new GmailService(); 
+export const gmailService = new GmailService();

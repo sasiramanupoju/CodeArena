@@ -3,7 +3,7 @@ import type { AuthRequest } from '../middleware/auth';
 import { z } from 'zod';
 import { insertCourseModuleSchema } from '../shared-schema';
 import { CourseModule } from '../models/CourseModule';
-import { executionService } from '../services/executionService';
+import { executionServicePromise } from '../services/executionService';
 import { storage } from '../storage';
 
 export async function getModuleById(req: Request, res: Response) {
@@ -21,7 +21,6 @@ export async function getModuleById(req: Request, res: Response) {
 export async function createModule(req: AuthRequest, res: Response) {
   try {
     const courseId = parseInt(req.params.id);
-    // Sanitize and coerce incoming values
     const raw = req.body || {};
     const sanitized = {
       ...raw,
@@ -37,7 +36,6 @@ export async function createModule(req: AuthRequest, res: Response) {
     } as any;
     const validatedData = insertCourseModuleSchema.parse(sanitized);
     
-    // Use storage layer instead of direct Mongoose
     const module = await storage.createCourseModule(validatedData);
     res.status(201).json(module);
   } catch (error) {
@@ -52,7 +50,6 @@ export async function createModule(req: AuthRequest, res: Response) {
 export async function updateModule(req: AuthRequest, res: Response) {
   try {
     const id = parseInt(req.params.id);
-    // Sanitize and coerce incoming values for partial update
     const raw = req.body || {};
     const sanitized = {
       ...raw,
@@ -67,7 +64,6 @@ export async function updateModule(req: AuthRequest, res: Response) {
     } as any;
     const validatedData = insertCourseModuleSchema.partial().parse(sanitized);
     
-    // Use storage layer instead of direct Mongoose
     const module = await storage.updateCourseModule(id, validatedData);
     if (!module) return res.status(404).json({ message: 'Module not found' });
     res.json(module);
@@ -84,11 +80,9 @@ export async function deleteModule(req: AuthRequest, res: Response) {
   try {
     const id = parseInt(req.params.id);
     
-    // Check if module exists first
     const module = await storage.getCourseModule(id);
     if (!module) return res.status(404).json({ message: 'Module not found' });
     
-    // Use storage layer instead of direct Mongoose
     await storage.deleteCourseModule(id);
     res.status(204).send();
   } catch (error) {
@@ -112,7 +106,8 @@ export async function executeModule(req: Request, res: Response) {
       codeLength: code.length,
       hasInput: !!input
     });
-
+    
+    const executionService = await executionServicePromise;
     const result = await executionService.executeCode(code, language, input);
     
     console.log(`[MODULES-CONTROLLER] ✅ Module execution completed:`, {
@@ -135,4 +130,4 @@ export async function executeModule(req: Request, res: Response) {
       error: error.message 
     });
   }
-} 
+}
