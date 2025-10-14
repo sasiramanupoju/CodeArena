@@ -1,6 +1,7 @@
 import { MongoClient, Db, ReadPreferenceMode, WriteConcern } from 'mongodb';
 import { EventEmitter } from 'events';
 import mongoose from 'mongoose';
+import 'dotenv/config';
 
 // Base MongoDB URL - using srv format for Atlas with test database
 const MONGODB_URL = process.env.MONGODB_URL || "mongodb+srv://CodeArena:raghavmail@codearena.vl1ishe.mongodb.net/?retryWrites=true&w=majority&appName=CodeArena";
