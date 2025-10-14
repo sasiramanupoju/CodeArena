@@ -6,7 +6,7 @@ async function migrateContestTimes() {
     console.log('🚀 Starting contest time fields migration...');
     
     // Connect to MongoDB
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/codearena';
+    const mongoUri = process.env.MONGODB_URL || 'mongodb://localhost:27017/codearena';
     await mongoose.connect(mongoUri);
     console.log('✅ Connected to MongoDB');
     
