@@ -3,21 +3,32 @@ import { EventEmitter } from 'events';
 import mongoose from 'mongoose';
 import 'dotenv/config';
 
-// Base MongoDB URL - using srv format for Atlas with test database
-const MONGODB_URL = process.env.MONGODB_URL || "mongodb+srv://CodeArena:raghavmail@codearena.vl1ishe.mongodb.net/?retryWrites=true&w=majority&appName=CodeArena";
+// Validate that MONGODB_URL is provided
+if (!process.env.MONGODB_URL) {
+  throw new Error(
+    'MONGODB_URL environment variable is required. Please set it in your .env file.\n' +
+    'Example: MONGODB_URL=mongodb://localhost:27017/codearena\n' +
+    'For Atlas: MONGODB_URL=mongodb+srv://username:password@cluster.mongodb.net/codearena'
+  );
+}
+
+const MONGODB_URL = process.env.MONGODB_URL;
 
 // MongoDB connection options
 const MONGODB_OPTIONS = {
-  serverSelectionTimeoutMS: 30000,
-  connectTimeoutMS: 30000,
-  socketTimeoutMS: 45000,
-  maxPoolSize: 50,
-  minPoolSize: 10,
+  serverSelectionTimeoutMS: parseInt(process.env.DB_SERVER_SELECTION_TIMEOUT || '30000'),
+  connectTimeoutMS: parseInt(process.env.DB_CONNECT_TIMEOUT || '30000'),
+  socketTimeoutMS: parseInt(process.env.DB_SOCKET_TIMEOUT || '45000'),
+  maxPoolSize: parseInt(process.env.DB_MAX_POOL_SIZE || '50'),
+  minPoolSize: parseInt(process.env.DB_MIN_POOL_SIZE || '10'),
   retryWrites: true,
   retryReads: true,
-  writeConcern: { w: 1, wtimeout: 2500 },
-  readPreference: 'primary' as ReadPreferenceMode,
-  monitorCommands: true,
+  writeConcern: { 
+    w: parseInt(process.env.DB_WRITE_CONCERN_W || '1'), 
+    wtimeout: parseInt(process.env.DB_WRITE_CONCERN_TIMEOUT || '2500')
+  },
+  readPreference: (process.env.DB_READ_PREFERENCE || 'primary') as ReadPreferenceMode,
+  monitorCommands: process.env.DB_MONITOR_COMMANDS === 'true',
 };
 
 class DatabaseConnection extends EventEmitter {
@@ -48,7 +59,7 @@ class DatabaseConnection extends EventEmitter {
     }
 
     let attempts = 0;
-    const maxAttempts = 5;
+    const maxAttempts = parseInt(process.env.DB_PING_ATTEMPTS || '5');
     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
     while (attempts < maxAttempts) {
@@ -59,7 +70,7 @@ class DatabaseConnection extends EventEmitter {
       } catch (error) {
         attempts++;
         if (attempts === maxAttempts) {
-          throw new Error('Failed to verify database connection');
+          throw new Error(`Failed to verify database connection after ${maxAttempts} attempts`);
         }
         await delay(1000); // Wait 1 second before retrying
       }
@@ -79,7 +90,7 @@ class DatabaseConnection extends EventEmitter {
           await this.waitForConnection();
           return this.db;
         } catch (error) {
-          console.log('[DEBUG] Existing connection failed, creating new connection...');
+          console.log('[DB] Existing connection failed, creating new connection...');
           await this.close();
         }
       }
@@ -87,61 +98,63 @@ class DatabaseConnection extends EventEmitter {
       this.isConnecting = true;
       
       // Connect using Mongoose first
-      console.log('[DEBUG] Connecting to MongoDB with Mongoose...');
+      console.log('[DB] Connecting to MongoDB with Mongoose...');
+      console.log('[DB] Database URL:', MONGODB_URL.replace(/\/\/[^@]*@/, '//***:***@')); // Hide credentials in logs
+      
       await mongoose.connect(MONGODB_URL, {
         serverSelectionTimeoutMS: MONGODB_OPTIONS.serverSelectionTimeoutMS,
         socketTimeoutMS: MONGODB_OPTIONS.socketTimeoutMS,
       });
 
       this.mongooseConnection = mongoose;
-      console.log('[DEBUG] Mongoose connection successful');
+      console.log('[DB] Mongoose connection successful');
 
       // Set up Mongoose connection event handlers
       mongoose.connection.on('error', (error) => {
-        console.error('[DEBUG] Mongoose connection error:', error);
+        console.error('[DB] Mongoose connection error:', error);
       });
 
       mongoose.connection.on('disconnected', () => {
-        console.log('[DEBUG] Mongoose disconnected');
+        console.log('[DB] Mongoose disconnected');
       });
 
       mongoose.connection.on('reconnected', () => {
-        console.log('[DEBUG] Mongoose reconnected');
+        console.log('[DB] Mongoose reconnected');
       });
 
       // Now connect with MongoClient for raw operations
       this.connectionPromise = new Promise(async (resolve, reject) => {
         try {
-          console.log('[DEBUG] Initializing MongoDB connection...');
+          console.log('[DB] Initializing MongoDB client connection...');
           
           this.client = new MongoClient(MONGODB_URL, MONGODB_OPTIONS);
 
           // Connect to MongoDB
           await this.client.connect();
-          console.log('[DEBUG] Connected to MongoDB server');
+          console.log('[DB] Connected to MongoDB server');
 
           // Get database instance
           this.db = this.client.db();
-          console.log('[DEBUG] Database instance created');
+          console.log('[DB] Database instance created');
 
           // Verify the connection works
           await this.waitForConnection();
-          console.log('[DEBUG] Connection verified');
+          console.log('[DB] Connection verified and ready');
 
           // Set up error handling
           this.client.on('error', (error) => {
-            console.error('[DEBUG] MongoDB client error:', error);
+            console.error('[DB] MongoDB client error:', error);
             this.handleError(error);
           });
 
           this.client.on('timeout', () => {
-            console.error('[DEBUG] MongoDB operation timeout');
+            console.error('[DB] MongoDB operation timeout');
             this.handleError(new Error('Operation timeout'));
           });
 
           resolve(this.db);
         } catch (error) {
-          console.error('[DEBUG] Failed to connect to MongoDB:', error);
+          console.error('[DB] Failed to connect to MongoDB:', error);
           this.isConnecting = false;
           this.connectionPromise = null;
           reject(error);
@@ -154,13 +167,16 @@ class DatabaseConnection extends EventEmitter {
     } catch (error) {
       this.isConnecting = false;
       this.connectionPromise = null;
-      console.error('[DEBUG] Connection error:', error);
-      throw error;
+      console.error('[DB] Connection error:', error);
+      throw new Error(
+        `Database connection failed: ${error instanceof Error ? error.message : 'Unknown error'}\n` +
+        'Please check your MONGODB_URL environment variable and ensure the database is accessible.'
+      );
     }
   }
+  
   private async handleError(error: Error): Promise<void> {
-    console.error('[DEBUG] Handling MongoDB error:', error);
-    console.error('[DEBUG] Error stack:', error.stack);
+    console.error('[DB] Handling MongoDB error:', error);
     
     // Close the existing connection
     await this.close();
@@ -175,7 +191,9 @@ class DatabaseConnection extends EventEmitter {
 
   getDb(): Db {
     if (!this.db || !this.client) {
-      throw new Error('Database not connected. Call connect() first.');
+      throw new Error(
+        'Database not connected. Call connectToMongoDB() first or check your MONGODB_URL configuration.'
+      );
     }
     return this.db;
   }
@@ -184,7 +202,8 @@ class DatabaseConnection extends EventEmitter {
     try {
       if (this.mongooseConnection) {
         await this.mongooseConnection.disconnect();
-        console.log('[DEBUG] Mongoose connection closed');
+        console.log('[DB] Mongoose connection closed');
+        this.mongooseConnection = null;
       }
 
       if (this.client) {
@@ -193,11 +212,30 @@ class DatabaseConnection extends EventEmitter {
         this.db = null;
         this.isConnecting = false;
         this.connectionPromise = null;
-        console.log('[DEBUG] MongoDB connection closed');
+        console.log('[DB] MongoDB connection closed');
       }
     } catch (error) {
-      console.error('[DEBUG] Error closing MongoDB connection:', error);
+      console.error('[DB] Error closing MongoDB connection:', error);
       throw error;
+    }
+  }
+
+  // Health check method
+  async healthCheck(): Promise<{ status: string; latency?: number; error?: string }> {
+    if (!this.db) {
+      return { status: 'disconnected', error: 'No database connection' };
+    }
+
+    try {
+      const start = Date.now();
+      await this.db.command({ ping: 1 });
+      const latency = Date.now() - start;
+      return { status: 'connected', latency };
+    } catch (error) {
+      return { 
+        status: 'error', 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      };
     }
   }
 }
@@ -212,20 +250,31 @@ export const getDb = (): Db => {
     const connection = DatabaseConnection.getInstance();
     const db = connection.getDb();
     
-    // Test the connection
+    // Test the connection in background
     db.command({ ping: 1 }).catch(async (error) => {
-      console.error('[DEBUG] Database ping failed:', error);
+      console.error('[DB] Database ping failed:', error);
       // Try to reconnect
-      await connection.connect();
+      try {
+        await connection.connect();
+      } catch (reconnectError) {
+        console.error('[DB] Failed to reconnect:', reconnectError);
+      }
     });
     
     return db;
   } catch (error) {
-    console.error('[DEBUG] Error getting database connection:', error);
-    throw new Error('Database connection error. Please try again.');
+    console.error('[DB] Error getting database connection:', error);
+    throw new Error(
+      'Database connection error. Please check your configuration and try again.\n' +
+      'Ensure MONGODB_URL is set correctly in your environment variables.'
+    );
   }
 };
 
 export const closeMongoDB = async (): Promise<void> => {
   return DatabaseConnection.getInstance().close();
+};
+
+export const dbHealthCheck = async () => {
+  return DatabaseConnection.getInstance().healthCheck();
 };
