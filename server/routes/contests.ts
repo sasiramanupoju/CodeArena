@@ -15,8 +15,8 @@ const router = Router();
 router.get('/test-auth', protect, async (req: AuthRequest, res: Response) => {
   console.log('🔐 [CONTEST-TEST] Test auth route reached');
   console.log('🔐 [CONTEST-TEST] User:', req.user?.id, 'Role:', req.user?.role);
-  res.json({
-    message: 'Authentication working',
+  res.json({ 
+    message: 'Authentication working', 
     user: { id: req.user?.id, role: req.user?.role },
     timestamp: new Date().toISOString()
   });
@@ -30,7 +30,7 @@ router.post('/', protect, async (req: AuthRequest, res: Response) => {
     }
 
     const { selectedProblems, ...contestData } = req.body;
-
+    
     console.log('[DEBUG] Creating contest with data:', {
       title: contestData.title,
       startTime: contestData.startTime,
@@ -38,9 +38,9 @@ router.post('/', protect, async (req: AuthRequest, res: Response) => {
       duration: contestData.duration,
       timeZone: contestData.timeZone
     });
-
+    
     if (!contestData.startTime || !contestData.endTime) {
-      return res.status(400).json({
+      return res.status(400).json({ 
         message: 'Start time and end time are required for contests',
         missingFields: {
           startTime: !contestData.startTime,
@@ -48,29 +48,29 @@ router.post('/', protect, async (req: AuthRequest, res: Response) => {
         }
       });
     }
-
+    
     const startTime = new Date(contestData.startTime);
     const endTime = new Date(contestData.endTime);
-
+    
     if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
-      return res.status(400).json({
-        message: 'Invalid date format for start time or end time'
+      return res.status(400).json({ 
+        message: 'Invalid date format for start time or end time' 
       });
     }
-
+    
     if (startTime >= endTime) {
-      return res.status(400).json({
-        message: 'Start time must be before end time'
+      return res.status(400).json({ 
+        message: 'Start time must be before end time' 
       });
     }
-
+    
     if (!contestData.duration) {
       const durationMs = endTime.getTime() - startTime.getTime();
-      contestData.duration = Math.ceil(durationMs / (1000 * 60));
+      contestData.duration = Math.ceil(durationMs / (1000 * 60)); 
       console.log('[DEBUG] Calculated duration:', contestData.duration, 'minutes');
     }
-
-    const problemInstances = selectedProblems && selectedProblems.length > 0
+    
+    const problemInstances = selectedProblems && selectedProblems.length > 0 
       ? await contestStorage.createContestProblemInstances(selectedProblems, `contest_${Date.now()}`)
       : [];
 
@@ -96,7 +96,6 @@ router.post('/', protect, async (req: AuthRequest, res: Response) => {
   }
 });
 
-// Get all problems for contest creation
 router.get('/available-problems', protect, async (req: AuthRequest, res: Response) => {
   try {
     if (req.user?.role !== 'admin') {
@@ -116,11 +115,11 @@ router.get('/', protect, async (req: AuthRequest, res: Response) => {
     console.log('🔐 [CONTEST-ROUTE] User authenticated:', req.user?.id, 'Role:', req.user?.role);
     console.log('🔐 [CONTEST-ROUTE] Request URL:', req.originalUrl);
     console.log('🔐 [CONTEST-ROUTE] Request headers:', req.headers);
-
+    
     if (req.originalUrl.includes('/api/admin/contests')) {
       try {
         const contests = await contestStorage.getAllContests();
-
+        
         const contestsWithParticipants = await Promise.all(
           contests.map(async (contest) => {
             try {
@@ -138,7 +137,7 @@ router.get('/', protect, async (req: AuthRequest, res: Response) => {
             }
           })
         );
-
+        
         res.json(contestsWithParticipants);
       } catch (error) {
         console.error("Error fetching admin contests:", error);
@@ -154,10 +153,10 @@ router.get('/', protect, async (req: AuthRequest, res: Response) => {
         };
 
         const contests = await contestStorage.getAllContests(filters);
-
+            
         const userEnrollments = await contestStorage.getUserContestEnrollments(req.user.id);
         const enrolledContestIds = new Set(userEnrollments.map(e => e.contestId));
-
+            
         for (const contest of contests) {
           try {
             await contestStorage.updateRankings(contest.id);
@@ -165,15 +164,15 @@ router.get('/', protect, async (req: AuthRequest, res: Response) => {
             console.error('Error updating rankings for contest:', contest.id, error);
           }
         }
-
+            
         const enrolledContests = contests.filter(contest => enrolledContestIds.has(contest.id));
-
+            
         const contestsWithParticipants = await Promise.all(
           enrolledContests.map(async (contest) => {
             try {
               const participantCount = (contest.participants || []).length;
-              const isEnrolled = true;
-
+              const isEnrolled = true; 
+                  
               let userProgress = null;
               try {
                 const enrollment = userEnrollments.find(e => e.contestId === contest.id);
@@ -186,7 +185,7 @@ router.get('/', protect, async (req: AuthRequest, res: Response) => {
               } catch (error) {
                 console.error('Error fetching user progress for contest:', contest.id, error);
               }
-
+                  
               return {
                 ...contest,
                 participantCount: participantCount,
@@ -204,7 +203,7 @@ router.get('/', protect, async (req: AuthRequest, res: Response) => {
             }
           })
         );
-
+            
         res.json(contestsWithParticipants);
       } catch (error) {
         console.error('Error fetching contests:', error);
@@ -213,7 +212,7 @@ router.get('/', protect, async (req: AuthRequest, res: Response) => {
     }
   } catch (error) {
     console.error('🔐 [CONTEST-ROUTE] Error in main route handler:', error);
-    res.status(500).json({
+    res.status(500).json({ 
       message: 'Failed to fetch contests',
       error: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
@@ -225,14 +224,14 @@ router.get('/:contestId', async (req: Request, res: Response) => {
   try {
     const { contestId } = req.params;
     const contest = await contestStorage.getContest(contestId);
-
+    
     if (!contest) {
       return res.status(404).json({ message: 'Contest not found' });
     }
 
     const participants = contest.participants || [];
     const participantCount = participants.length;
-
+    
     let detailedParticipants = [];
     if (participants.length > 0) {
       try {
@@ -241,13 +240,13 @@ router.get('/:contestId', async (req: Request, res: Response) => {
         console.error('Error fetching detailed participants for contest:', contestId, error);
       }
     }
-
+    
     const contestWithParticipants = {
       ...contest,
       participants: detailedParticipants.length > 0 ? detailedParticipants : participants,
       participantCount: participantCount
     };
-
+    
     res.json(contestWithParticipants);
   } catch (error) {
     console.error('Error fetching contest:', error);
@@ -263,7 +262,7 @@ router.put('/:contestId', protect, async (req: AuthRequest, res: Response) => {
 
     const { contestId } = req.params;
     const { selectedProblems, ...contestData } = req.body;
-
+    
     console.log('[DEBUG] Updating contest:', contestId);
     console.log('[DEBUG] Contest update data:', {
       title: contestData.title,
@@ -272,50 +271,50 @@ router.put('/:contestId', protect, async (req: AuthRequest, res: Response) => {
       duration: contestData.duration,
       timeZone: contestData.timeZone
     });
-
+    
     let updates = { ...contestData };
-
+    
     if (contestData.startTime || contestData.endTime) {
       const startTime = contestData.startTime ? new Date(contestData.startTime) : undefined;
       const endTime = contestData.endTime ? new Date(contestData.endTime) : undefined;
-
+      
       if (startTime && isNaN(startTime.getTime())) {
         return res.status(400).json({ message: 'Invalid start time format' });
       }
-
+      
       if (endTime && isNaN(endTime.getTime())) {
         return res.status(400).json({ message: 'Invalid end time format' });
       }
-
+      
       if (startTime && endTime && startTime >= endTime) {
         return res.status(400).json({ message: 'Start time must be before end time' });
       }
-
+      
       if (startTime) updates.startTime = startTime;
       if (endTime) updates.endTime = endTime;
-
+      
       if (startTime && endTime && !contestData.duration) {
         const durationMs = endTime.getTime() - startTime.getTime();
-        updates.duration = Math.ceil(durationMs / (1000 * 60));
+        updates.duration = Math.ceil(durationMs / (1000 * 60)); 
         console.log('[DEBUG] Recalculated duration:', updates.duration, 'minutes');
       }
-
+      
       updates.contestEndMethod = null;
       console.log('[DEBUG] Contest rescheduled - resetting contestEndMethod to null');
     }
-
+    
     if (Array.isArray(selectedProblems) && selectedProblems.length > 0) {
       console.log('[DEBUG] Creating new problem instances for contest update');
       const problemInstances = await contestStorage.createContestProblemInstances(
-        selectedProblems,
+        selectedProblems, 
         `contest_${contestId}_${Date.now()}`
       );
       updates.problems = problemInstances;
       console.log('[DEBUG] Created problem instances:', problemInstances.length);
     }
-
+    
     const contest = await contestStorage.updateContest(contestId, updates);
-
+    
     if (!contest) {
       return res.status(404).json({ message: 'Contest not found' });
     }
@@ -350,7 +349,7 @@ router.delete('/:contestId', protect, async (req: AuthRequest, res: Response) =>
 
     const { contestId } = req.params;
     const deleted = await contestStorage.deleteContest(contestId);
-
+    
     if (!deleted) {
       return res.status(404).json({ message: 'Contest not found' });
     }
@@ -370,9 +369,9 @@ router.post('/:contestId/problems', protect, async (req: AuthRequest, res: Respo
 
     const { contestId } = req.params;
     const problem = req.body;
-
+    
     const success = await contestStorage.addProblemToContest(contestId, problem);
-
+    
     if (!success) {
       return res.status(404).json({ message: 'Contest not found' });
     }
@@ -403,9 +402,9 @@ router.put('/:contestId/problems/:problemId', protect, async (req: AuthRequest, 
 
     const { contestId, problemId } = req.params;
     const updates = req.body;
-
+    
     const success = await contestStorage.updateContestProblem(contestId, problemId, updates);
-
+    
     if (!success) {
       return res.status(404).json({ message: 'Contest or problem not found' });
     }
@@ -424,9 +423,9 @@ router.delete('/:contestId/problems/:problemId', protect, async (req: AuthReques
     }
 
     const { contestId, problemId } = req.params;
-
+    
     const success = await contestStorage.removeProblemFromContest(contestId, problemId);
-
+    
     if (!success) {
       return res.status(404).json({ message: 'Contest or problem not found' });
     }
@@ -450,7 +449,7 @@ router.get('/:contestId/participants/me', protect, async (req: AuthRequest, res:
 
     const participants = await contestStorage.getContestParticipants(contestId);
     const userParticipation = participants.find(p => p.userId === userId);
-
+    
     if (userParticipation) {
       res.json(userParticipation);
     } else {
@@ -514,9 +513,9 @@ router.post('/:contestId/register', protect, async (req: AuthRequest, res: Respo
     } else {
       participant = await contestStorage.registerParticipant(contestId, targetUserId);
     }
-
+    
     console.log('[DEBUG] Participant registered successfully:', participant.id);
-
+    
     const user = await contestStorage.getUser(targetUserId);
     const enrichedParticipant = {
       ...participant,
@@ -527,7 +526,7 @@ router.post('/:contestId/register', protect, async (req: AuthRequest, res: Respo
         email: user.email || '',
       } : null
     };
-
+    
     res.status(201).json(enrichedParticipant);
   } catch (error: any) {
     console.error('Error registering participant:', error);
@@ -545,7 +544,7 @@ router.delete('/:contestId/register', protect, async (req: AuthRequest, res: Res
     }
 
     const success = await contestStorage.unregisterParticipant(contestId, userId);
-
+    
     if (!success) {
       return res.status(404).json({ message: 'Registration not found' });
     }
@@ -589,7 +588,7 @@ router.delete('/:contestId/participants/:userId', protect, async (req: AuthReque
 
     const { contestId, userId } = req.params;
     const success = await contestStorage.unregisterParticipant(contestId, userId);
-
+    
     if (success) {
       res.json({ message: 'Participant removed successfully' });
     } else {
@@ -614,7 +613,7 @@ router.post('/:contestId/submit', protect, async (req: AuthRequest, res: Respons
 
     const participants = await contestStorage.getContestParticipants(contestId);
     const isRegistered = participants.some(p => p.userId === userId);
-
+    
     if (!isRegistered) {
       return res.status(403).json({ message: 'Must be registered for contest' });
     }
@@ -639,7 +638,7 @@ router.post('/:contestId/submit', protect, async (req: AuthRequest, res: Respons
     if (testCases.length === 0) {
       return res.status(400).json({ message: 'No test cases available for this problem' });
     }
-
+    
     const executionService = await executionServicePromise;
     const executionResult = await executionService.executeWithTestCases(code, language, testCases);
 
@@ -647,9 +646,9 @@ router.post('/:contestId/submit', protect, async (req: AuthRequest, res: Respons
     const totalTestCases = executionResult.testResults.length;
     const allPassed = executionResult.allTestsPassed;
     const status = allPassed ? 'accepted' : passedCount > 0 ? 'partial' : 'wrong_answer';
-
+    
     const points = allPassed ? 100 : Math.floor((passedCount / totalTestCases) * 100);
-
+    
     const runtime = executionResult.testResults.reduce((sum: number, r: any) => sum + (r.runtime || 0), 0) / totalTestCases;
     const memory = executionResult.testResults.reduce((sum: number, r: any) => Math.max(sum, r.memory || 0), 0);
 
@@ -735,9 +734,9 @@ router.post('/:contestId/problems/:problemId/submit', protect, async (req: AuthR
     const totalTestCases = executionResult.testResults.length;
     const allPassed = executionResult.allTestsPassed;
     const status = allPassed ? 'accepted' : passedCount > 0 ? 'partial' : 'wrong_answer';
-
+    
     const points = allPassed ? 100 : Math.floor((passedCount / totalTestCases) * 100);
-
+    
     const runtime = executionResult.testResults.reduce((sum: number, r: any) => sum + (r.runtime || 0), 0) / totalTestCases;
     const memory = executionResult.testResults.reduce((sum: number, r: any) => Math.max(sum, r.memory || 0), 0);
 
@@ -758,7 +757,7 @@ router.post('/:contestId/problems/:problemId/submit', protect, async (req: AuthR
     });
 
     console.log(`[CONTEST-SUBMIT] Successfully submitted solution: submissionId=${submission.id}, status=${submission.status}, points=${points}, autoSubmitted=${autoSubmitted}`);
-
+    
     res.json({
       id: submission.id,
       problemId: submission.problemId,
@@ -987,8 +986,10 @@ router.post('/execute', protect, async (req: AuthRequest, res: Response) => {
     console.log(`📥 [CONTEST-EXEC] Input length: ${input ? input.length : 0}`);
     console.log(`📥 [CONTEST-EXEC] Input type: ${typeof input}`);
     
+    // CRITICAL FIX: Await the promise to get the service instance
     const executionService = await executionServicePromise;
     
+    // Use the same Docker execution service as assignments
     const result = await executionService.executeCode(code, language, input);
     
     console.log(`✅ [CONTEST-EXEC] Execution completed`);
@@ -1029,8 +1030,10 @@ router.post('/run-custom-input', protect, async (req: AuthRequest, res: Response
     console.log(`📝 [CONTEST-CUSTOM-EXEC] Code length: ${code.length} characters`);
     console.log(`📥 [CONTEST-CUSTOM-EXEC] Custom input: "${customInput}"`);
     
+    // CRITICAL FIX: Await the promise to get the service instance
     const executionService = await executionServicePromise;
     
+    // Use the same Docker execution service as assignments
     const result = await executionService.executeCode(code, language, customInput);
     
     console.log(`✅ [CONTEST-CUSTOM-EXEC] Execution completed`);
