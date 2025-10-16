@@ -725,57 +725,52 @@ export default function ContestProblemsPage() {
   };
 
   // When contest time expires, auto-submit code for all problems once
-useEffect(() => {
-    // This hook should only run if the contest has been loaded.
-    if (!contest) return;
-    
-    // If the contest is already auto-submitted or has no time left, we can exit early.
-    if (autoSubmitted || timeLeftMs === null || timeLeftMs > 0) {
-        return;
-    }
-
-    // Use a self-invoking async function to run the auto-submit logic.
-    (async () => {
+  useEffect(() => {
+    // contest is declared below; guard until it exists via typeof check on window to avoid TDZ
+    const hasContest = typeof contest !== 'undefined' && contest !== null as any;
+    if (!hasContest || autoSubmitted) return;
+    if (timeLeftMs !== null && timeLeftMs <= 0) {
+      (async () => {
         try {
-            for (const problem of contest.problems || []) {
-                const key = `contest:${contestId}:problem:${problem.id}:code`;
-                const savedCode = localStorage.getItem(key) || code;
-                if (!savedCode) continue;
-
-                try {
-                    await fetch(`/api/contests/${contestId}/problems/${problem.id}/submit`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                        },
-                        body: JSON.stringify({ code: savedCode, language })
-                    });
-                } catch (e) {
-                    console.error('Auto-submit failed for problem', problem.id, e);
-                }
-            }
-            setAutoSubmitted(true);
-            toast({ title: 'Contest Ended', description: 'Your code has been auto-submitted.' });
-            
-            // Reset tab switch count for this contest (in case user re-enters)
-            const tabSwitchKey = `contest:${contestId}:tabSwitchCount`;
+          for (const problem of (contest as any).problems || []) {
+            const key = `contest:${contestId}:problem:${problem.id}:code`;
+            const savedCode = localStorage.getItem(key) || code;
+            if (!savedCode) continue;
             try {
-                localStorage.removeItem(tabSwitchKey);
-            } catch (error) {
-                console.log('Failed to clear tab switch count:', error);
+              await fetch(`/api/contests/${contestId}/problems/${problem.id}/submit`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                },
+                body: JSON.stringify({ code: savedCode, language })
+              });
+            } catch (e) {
+              console.error('Auto-submit failed for problem', problem.id, e);
             }
-            
-            // Exit full-screen mode and redirect after auto-submit
-            setTimeout(() => {
-                exitContestAndRedirect();
-            }, 2000); // Give user 2 seconds to see the toast
+          }
+          setAutoSubmitted(true);
+          toast({ title: 'Contest Ended', description: 'Your code has been auto-submitted.' });
+          
+          // Reset tab switch count for this contest (in case user re-enters)
+          const tabSwitchKey = `contest:${contestId}:tabSwitchCount`;
+          try {
+            localStorage.removeItem(tabSwitchKey);
+          } catch (error) {
+            console.log('Failed to clear tab switch count:', error);
+          }
+          
+          // Exit full-screen mode and redirect after auto-submit
+          setTimeout(() => {
+            exitContestAndRedirect();
+          }, 2000); // Give user 2 seconds to see the toast
         } catch (err) {
-            console.error('Auto-submit batch failed', err);
+          console.error('Auto-submit batch failed', err);
         }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [timeLeftMs, autoSubmitted, code, language, contestId]);
+      })();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeLeftMs, autoSubmitted, code, language, contestId]);
 
   const formatTimeLeft = (ms?: number | null) => {
     if (!ms && ms !== 0) return '';
