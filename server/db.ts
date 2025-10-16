@@ -3,6 +3,7 @@ import { EventEmitter } from 'events';
 import mongoose from 'mongoose';
 import 'dotenv/config';
 
+
 // Validate that MONGODB_URL is provided
 if (!process.env.MONGODB_URL) {
   throw new Error(
