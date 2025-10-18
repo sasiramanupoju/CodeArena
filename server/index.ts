@@ -13,9 +13,7 @@ import dotenv from "dotenv";
 dotenv.config();
 // Load environment variables
 
-
 console.log('MONGODB_URL:', process.env.MONGODB_URL);
-
 
 // Validate required environment variables
 const requiredEnvVars = ['SESSION_SECRET', 'MONGODB_URL'];
@@ -50,40 +48,35 @@ const config = {
 // Disable ETag to avoid 304 Not Modified responses on API
 app.set('etag', false);
 
-// CORS configuration
+// ---------------- FIXED CORS CONFIG ----------------
 const corsOrigins = config.corsOrigin
   ? config.corsOrigin.split(',').map(origin => origin.trim())
   : [];
 
 // Always include Vercel frontend in production
 if (config.nodeEnv === 'production') {
-  corsOrigins.push('https://code-arena-taupe.vercel.app'); // add your frontend URL
+  corsOrigins.push('https://code-arena-taupe.vercel.app'); // your frontend URL
 }
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like Postman, mobile apps, or server-to-server)
+    // Allow requests with no origin (like Postman or server-to-server requests)
     if (!origin) return callback(null, true);
 
-    // Allow if origin is in the whitelist
-    if (corsOrigins.includes(origin) || corsOrigins.includes('*')) {
-      return callback(null, true);
-    }
+    // Allow if origin is in whitelist
+    if (corsOrigins.includes(origin) || corsOrigins.includes('*')) return callback(null, true);
 
     // Allow localhost in development
-    if (config.nodeEnv === 'development' && origin.includes('localhost')) {
-      return callback(null, true);
-    }
+    if (config.nodeEnv === 'development' && origin.includes('localhost')) return callback(null, true);
 
-    // Otherwise, block the request
+    // Block all other origins
     return callback(new Error('Not allowed by CORS'));
   },
-  credentials: true, // allows cookies/sessions
+  credentials: true, // allow cookies/sessions
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
-
-
+// ----------------------------------------------------
 
 // Ensure API responses are never cached
 app.use('/api', (req, res, next) => {
@@ -174,7 +167,6 @@ app.use(activityLogger());
       console.log(`🚀 CodeArena API Server running on http://${config.host}:${config.port}`);
     });
 
-    // --- FIX: ROUTE REGISTRATION MOVED UP ---
     // Register all application routes BEFORE the 404 handler
     await registerRoutes(app);
     console.log('✅ Routes registered successfully');
@@ -188,11 +180,10 @@ app.use(activityLogger());
         console.warn('⚠️  Vite dev server failed. Running in API-only mode.');
       }
     } else {
-        console.log('🚀 Production mode: API-only server');
+      console.log('🚀 Production mode: API-only server');
     }
 
-    // --- FIX: 404 AND ERROR HANDLERS MOVED TO THE END ---
-    // Global 404 handler for any unmatched routes
+    // Global 404 handler for unmatched routes
     app.use('*', (req, res) => {
       res.status(404).json({
         error: 'Endpoint not found',
@@ -201,7 +192,7 @@ app.use(activityLogger());
       });
     });
 
-    // Global error handling middleware
+    // Global error handler
     app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
       console.error('[ERROR]', err.stack || err.message);
       const errorResponse = config.nodeEnv === 'production'
@@ -210,7 +201,7 @@ app.use(activityLogger());
       res.status(500).json(errorResponse);
     });
 
-    // Connect to the database
+    // Connect to MongoDB
     await connectToMongoDB();
     console.log('✅ MongoDB connected successfully');
 
@@ -227,21 +218,18 @@ app.use(activityLogger());
   }
 })();
 
-// Graceful shutdown handling
+// Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('🛑 SIGTERM received, shutting down...');
   process.exit(0);
 });
-
 process.on('SIGINT', () => {
   console.log('🛑 SIGINT received, shutting down...');
   process.exit(0);
 });
-
 process.on('unhandledRejection', (reason, promise) => {
   console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
 });
-
 process.on('uncaughtException', (error) => {
   console.error('❌ Uncaught Exception:', error);
   process.exit(1);
