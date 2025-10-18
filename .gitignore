@@ -1,5 +1,5 @@
 node_modules
-dist
+dist/
 .DS_Store
 server/public
 vite.config.ts.*
@@ -10,3 +10,5 @@ vite.config.ts.*
 .env.development.local
 .env.test.local
 .env.production.local
+echo "node_modules/
+*.log" > .gitignore
