@@ -51,22 +51,38 @@ const config = {
 app.set('etag', false);
 
 // CORS configuration
-const corsOrigins = config.corsOrigin.split(',').map(origin => origin.trim());
+const corsOrigins = config.corsOrigin
+  ? config.corsOrigin.split(',').map(origin => origin.trim())
+  : [];
+
+// Always include Vercel frontend in production
+if (config.nodeEnv === 'production') {
+  corsOrigins.push('https://code-arena-taupe.vercel.app'); // add your frontend URL
+}
+
 app.use(cors({
   origin: (origin, callback) => {
+    // Allow requests with no origin (like Postman, mobile apps, or server-to-server)
     if (!origin) return callback(null, true);
+
+    // Allow if origin is in the whitelist
     if (corsOrigins.includes(origin) || corsOrigins.includes('*')) {
       return callback(null, true);
     }
+
+    // Allow localhost in development
     if (config.nodeEnv === 'development' && origin.includes('localhost')) {
       return callback(null, true);
     }
+
+    // Otherwise, block the request
     return callback(new Error('Not allowed by CORS'));
   },
-  credentials: true, // --- FIX: This is now always true
+  credentials: true, // allows cookies/sessions
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
+
 
 
 // Ensure API responses are never cached
