@@ -49,7 +49,8 @@ const userSchema = new mongoose.Schema<IUserDocument>({
   },
   lastName: {
     type: String,
-    required: [true, 'Last name is required'],
+    required: false, // make optional
+    default: "",
     trim: true
   },
   profileImageUrl: String,
