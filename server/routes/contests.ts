@@ -220,7 +220,7 @@ router.get('/', protect, async (req: AuthRequest, res: Response) => {
   }
 });
 
-router.get('/:contestId', async (req: Request, res: Response) => {
+router.get('/:contestId', protect, async (req: AuthRequest, res: Response) => {
   try {
     const { contestId } = req.params;
     const contest = await contestStorage.getContest(contestId);
@@ -228,6 +228,9 @@ router.get('/:contestId', async (req: Request, res: Response) => {
     if (!contest) {
       return res.status(404).json({ message: 'Contest not found' });
     }
+
+    console.log(`[CONTEST-GET] User ${req.user?.id} requesting contest ${contestId}`);
+    console.log(`[CONTEST-GET] Contest has ${contest.problems?.length || 0} problems`);
 
     const participants = contest.participants || [];
     const participantCount = participants.length;
@@ -247,6 +250,7 @@ router.get('/:contestId', async (req: Request, res: Response) => {
       participantCount: participantCount
     };
     
+    console.log(`[CONTEST-GET] Returning contest with ${contestWithParticipants.problems?.length || 0} problems`);
     res.json(contestWithParticipants);
   } catch (error) {
     console.error('Error fetching contest:', error);
@@ -782,9 +786,13 @@ router.post('/:contestId/problems/:problemId/submit', protect, async (req: AuthR
 router.get('/:contestId/submissions', protect, async (req: AuthRequest, res: Response) => {
   try {
     const { contestId } = req.params;
-    const userId = req.query.userId as string;
+    const requestedUserId = req.query.userId as string;
+    
+    // Default to current user if no userId specified
+    const userId = requestedUserId || req.user?.id;
 
-    if (userId && req.user?.role !== 'admin' && req.user?.id !== userId) {
+    // Only allow users to see their own submissions unless they're an admin
+    if (requestedUserId && req.user?.role !== 'admin' && req.user?.id !== requestedUserId) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
