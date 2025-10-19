@@ -217,6 +217,7 @@ export default function ContestProblemsPage() {
       document.removeEventListener('msfullscreenchange', handleFullscreenChange);
     };
   }, []);
+ 
 
   // Function to auto-submit all problems and terminate contest (for tab switching)
   // This will be defined after the required functions are declared
@@ -228,161 +229,162 @@ export default function ContestProblemsPage() {
 
   // Function to confirm contest ending and auto-submit code
   const confirmEndContest = async () => {
-    try {
-      // Call API to manually end the contest in the database
-      const endContestResponse = await fetch(`/api/contests/${contestId}/end`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
+      try {
+        // ✅ FIX: The API endpoint is changed to affect only the current user
+        const endContestResponse = await fetch(`/api/contests/${contestId}/end-user`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
 
-      if (!endContestResponse.ok) {
-        throw new Error('Failed to end contest');
-      }
+        if (!endContestResponse.ok) {
+          // Updated error message for clarity
+          throw new Error('Failed to end contest for this user');
+        }
 
-      const endContestResult = await endContestResponse.json();
-      console.log('Contest ended successfully:', endContestResult);
-      
-      // Set localStorage flag for backward compatibility (can be removed later)
-      const uid = localStorage.getItem('userId') || 'me';
-      localStorage.setItem(`contest:${contestId}:endedBy:${uid}`, 'true');
-      
-      // Auto-submit only problems that haven't been submitted or aren't accepted
-      const problemsToSubmit: Array<{problem: ContestProblem, code: string, language: string}> = [];
-      
-      if (contest?.problems) {
-        for (const problem of contest.problems) {
-          const codeKey = `contest:${contestId}:problem:${problem.id}:code`;
-          const langKey = `contest:${contestId}:problem:${problem.id}:language`;
-          
-          try {
-            const storedCode = localStorage.getItem(codeKey);
-            const storedLang = localStorage.getItem(langKey) || 'javascript';
-            
-            if (storedCode && storedCode.trim()) {
-              // Check if this problem has already been submitted (regardless of status)
-              const currentStatus = getSubmissionStatus(problem.id);
-              const hasSubmission = currentStatus !== null;
-              
-              // Only submit if:
-              // 1. No submission exists yet, OR
-              // 2. Submission exists but status is not 'accepted' AND we have new/modified code
-              if (!hasSubmission) {
-                problemsToSubmit.push({
-                  problem,
-                  code: storedCode,
-                  language: storedLang
-                });
-                console.log(`Will submit problem ${problem.title} - no previous submission`);
-              } else if (currentStatus !== 'accepted') {
-                // Check if code has changed since last submission
-                const lastSubmission = submissions?.find(s => s.problemId === problem.id);
-                if (lastSubmission && lastSubmission.code !== storedCode) {
-                  problemsToSubmit.push({
-                    problem,
-                    code: storedCode,
-                    language: storedLang
-                  });
-                  console.log(`Will submit problem ${problem.title} - code modified since last submission (status: ${currentStatus})`);
-                } else {
-                  console.log(`Skipping problem ${problem.title} - already submitted with same code (status: ${currentStatus})`);
-                }
-              } else {
-                console.log(`Skipping problem ${problem.title} - already accepted`);
-              }
-            }
-          } catch (error) {
-            console.error(`Failed to retrieve code for problem ${problem.id}:`, error);
-          }
-        }
-      }
-      
-      // Submit only problems that need submission
-      let submittedCount = 0;
-      let skippedCount = 0;
-      
-      if (problemsToSubmit.length > 0) {
-      for (const {problem, code, language} of problemsToSubmit) {
-        try {
-          const response = await fetch(`/api/contests/${contestId}/problems/${problem.id}/submit`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            },
-            body: JSON.stringify({
-              code,
-              language,
-              autoSubmitted: true,
-            }),
-          });
-          
-          if (response.ok) {
-            submittedCount++;
-            console.log(`Auto-submitted solution for problem: ${problem.title}`);
-          } else {
-            console.error(`Failed to auto-submit solution for problem: ${problem.title}`);
-          }
-        } catch (error) {
-          console.error(`Error auto-submitting solution for problem ${problem.title}:`, error);
-        }
-        }
-      } else {
-        // Count how many problems were already accepted
-        skippedCount = contest?.problems?.filter(problem => {
-          const status = getSubmissionStatus(problem.id);
-          return status === 'accepted';
-        }).length || 0;
-      }
-      
-      // Show appropriate message
-      if (submittedCount > 0) {
-        toast({
-          title: 'Contest Ended Successfully',
-          description: `${submittedCount} solution(s) submitted, ${skippedCount} already accepted.`,
-          variant: 'default',
-        });
-      } else if (skippedCount > 0) {
-        toast({
-          title: 'Contest Ended',
-          description: `All ${skippedCount} problems already accepted. No new submissions needed.`,
-          variant: 'default',
-        });
-      } else {
-        toast({
-          title: 'Contest Ended',
-          description: 'No solutions to submit. Contest ended successfully.',
-          variant: 'default',
-        });
-      }
-      
-      // Reset tab switch count for this contest (in case user re-enters)
-      const tabSwitchKey = `contest:${contestId}:tabSwitchCount`;
-      try {
-        localStorage.removeItem(tabSwitchKey);
-      } catch (error) {
-        console.log('Failed to clear tab switch count:', error);
-      }
-      
-      // Close dialog and exit contest
-      setShowEndContestDialog(false);
-      exitContestAndRedirect();
-      
-    } catch (error) {
-      console.error('Error ending contest:', error);
-      toast({
-        title: 'Error Ending Contest',
-        description: 'Failed to auto-submit solutions. Contest will still be ended.',
-        variant: 'destructive',
-      });
-      
-      // Still end contest even if auto-submission failed
-      setShowEndContestDialog(false);
-      exitContestAndRedirect();
-    }
-  };
+        const endContestResult = await endContestResponse.json();
+        console.log('User contest participation ended successfully:', endContestResult);
+        
+        // Set localStorage flag for backward compatibility (can be removed later)
+        const uid = localStorage.getItem('userId') || 'me';
+        localStorage.setItem(`contest:${contestId}:endedBy:${uid}`, 'true');
+        
+        // Auto-submit only problems that haven't been submitted or aren't accepted
+        const problemsToSubmit: Array<{problem: ContestProblem, code: string, language: string}> = [];
+        
+        if (contest?.problems) {
+          for (const problem of contest.problems) {
+            const codeKey = `contest:${contestId}:problem:${problem.id}:code`;
+            const langKey = `contest:${contestId}:problem:${problem.id}:language`;
+            
+            try {
+              const storedCode = localStorage.getItem(codeKey);
+              const storedLang = localStorage.getItem(langKey) || 'javascript';
+              
+              if (storedCode && storedCode.trim()) {
+                // Check if this problem has already been submitted (regardless of status)
+                const currentStatus = getSubmissionStatus(problem.id);
+                const hasSubmission = currentStatus !== null;
+                
+                // Only submit if:
+                // 1. No submission exists yet, OR
+                // 2. Submission exists but status is not 'accepted' AND we have new/modified code
+                if (!hasSubmission) {
+                  problemsToSubmit.push({
+                    problem,
+                    code: storedCode,
+                    language: storedLang
+                  });
+                  console.log(`Will submit problem ${problem.title} - no previous submission`);
+                } else if (currentStatus !== 'accepted') {
+                  // Check if code has changed since last submission
+                  const lastSubmission = submissions?.find(s => s.problemId === problem.id);
+                  if (lastSubmission && lastSubmission.code !== storedCode) {
+                    problemsToSubmit.push({
+                      problem,
+                      code: storedCode,
+                      language: storedLang
+                    });
+                    console.log(`Will submit problem ${problem.title} - code modified since last submission (status: ${currentStatus})`);
+                  } else {
+                    console.log(`Skipping problem ${problem.title} - already submitted with same code (status: ${currentStatus})`);
+                  }
+                } else {
+                  console.log(`Skipping problem ${problem.title} - already accepted`);
+                }
+              }
+           } catch (error) {
+              console.error(`Failed to retrieve code for problem ${problem.id}:`, error);
+            }
+          }
+        }
+        
+        // Submit only problems that need submission
+        let submittedCount = 0;
+        let skippedCount = 0;
+        
+        if (problemsToSubmit.length > 0) {
+        for (const {problem, code, language} of problemsToSubmit) {
+          try {
+            const response = await fetch(`/api/contests/${contestId}/problems/${problem.id}/submit`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+              },
+              body: JSON.stringify({
+                code,
+                language,
+                autoSubmitted: true,
+              }),
+            });
+            
+            if (response.ok) {
+              submittedCount++;
+              console.log(`Auto-submitted solution for problem: ${problem.title}`);
+            } else {
+              console.error(`Failed to auto-submit solution for problem: ${problem.title}`);
+            }
+          } catch (error) {
+            console.error(`Error auto-submitting solution for problem ${problem.title}:`, error);
+          }
+          }
+        } else {
+          // Count how many problems were already accepted
+          skippedCount = contest?.problems?.filter(problem => {
+            const status = getSubmissionStatus(problem.id);
+            return status === 'accepted';
+          }).length || 0;
+        }
+        
+        // Show appropriate message
+        if (submittedCount > 0) {
+          toast({
+            title: 'Contest Ended Successfully',
+            description: `${submittedCount} solution(s) submitted, ${skippedCount} already accepted.`,
+            variant: 'default',
+          });
+        } else if (skippedCount > 0) {
+          toast({
+            title: 'Contest Ended',
+            description: `All ${skippedCount} problems already accepted. No new submissions needed.`,
+            variant: 'default',
+          });
+        } else {
+          toast({
+            title: 'Contest Ended',
+            description: 'No solutions to submit. Contest ended successfully.',
+            variant: 'default',
+          });
+        }
+        
+        // Reset tab switch count for this contest (in case user re-enters)
+        const tabSwitchKey = `contest:${contestId}:tabSwitchCount`;
+        try {
+          localStorage.removeItem(tabSwitchKey);
+        } catch (error) {
+          console.log('Failed to clear tab switch count:', error);
+        }
+        
+        // Close dialog and exit contest
+        setShowEndContestDialog(false);
+        exitContestAndRedirect();
+        
+      } catch (error) {
+        console.error('Error ending contest:', error);
+        toast({
+          title: 'Error Ending Contest',
+          description: 'Failed to auto-submit solutions. Contest will still be ended.',
+          variant: 'destructive',
+        });
+        
+        // Still end contest even if auto-submission failed
+        setShowEndContestDialog(false);
+        exitContestAndRedirect();
+      }
+    };
 
   // Tab switch detection for contest pages - will be defined after terminateContestAndSubmit
 
@@ -1387,16 +1389,25 @@ export default function ContestProblemsPage() {
     }
   };
 
-  const getSubmissionStatus = (problemId: string) => {
-    const problemSubmissions = submissions?.filter(s => s.problemId === problemId) || [];
-    const latestSubmission = problemSubmissions.sort((a, b) => {
-      const bt = new Date((b.submittedAt || b.submissionTime || 0) as any).getTime();
-      const at = new Date((a.submittedAt || a.submissionTime || 0) as any).getTime();
-      return bt - at;
-    })[0];
+  const getSubmissionStatus = useCallback((problemId: string): Submission['status'] | null => {
+  try {
+    if (!submissions || submissions.length === 0) return null;
+    const subsForProblem = submissions.filter(s => s.problemId === problemId);
+    if (subsForProblem.length === 0) return null;
     
-    return latestSubmission?.status || null;
-  };
+    // Find the latest submission
+    let latest = subsForProblem[0];
+    for (const s of subsForProblem) {
+      const sTime = new Date(s.submittedAt || s.submissionTime || 0).getTime();
+      const lTime = new Date(latest.submittedAt || latest.submissionTime || 0).getTime();
+      if (sTime > lTime) latest = s;
+    }
+    return latest.status || null;
+  } catch (e) {
+    console.warn('getSubmissionStatus error', e);
+    return null;
+  }
+}, [submissions]);
 
   // Function to auto-submit all problems and terminate contest (for tab switching)
   const terminateContestAndSubmit = useCallback(async () => {
@@ -1594,7 +1605,7 @@ export default function ContestProblemsPage() {
         exitContestAndRedirect();
       }, 2000);
     }
-  }, [isContestTerminated, contestId, contest, getSubmissionStatus, submissions, toast, exitContestAndRedirect]);
+  }, [isContestTerminated, contestId, contest, getSubmissionStatus, toast, exitContestAndRedirect]);
 
   // Tab switch detection for contest pages
   useEffect(() => {
@@ -1771,7 +1782,35 @@ export default function ContestProblemsPage() {
         return 'text-gray-600';
     }
   };
+     useEffect(() => {
+  // Trigger fullscreen only when a problem is newly selected
+  if (selectedProblem && !isFullscreen) {
+    enterFullscreen();
+  }
+}, [selectedProblem]); // This effect runs when `selectedProblem` changes
+  // Check if user is disqualified or contest has ended - redirect to leaderboard immediately
+  useEffect(() => {
+  // ✅ FIX: Add this guard clause
+  if (!enrollmentStatus || !contest) {
+    return;
+  }
 
+  // Check if user is disqualified
+  if (enrollmentStatus.isDisqualified) {
+    setLocation(`/contests/${contestId}/leaderboard`);
+    return;
+  }
+
+  // Check if contest has been manually ended
+  if (enrollmentStatus.contestEndMethod === 'manually_ended') {
+    const now = new Date();
+    const endTime = new Date(contest.endTime); // Now safe to access
+    if (now > endTime) {
+      setLocation(`/contests/${contestId}/leaderboard`);
+    }
+  }
+  // ✅ Also, update the dependency array
+}, [enrollmentStatus, contest, contestId, setLocation]);
   if (isLoading) {
     return (
       <div className="p-6">
@@ -1826,23 +1865,6 @@ export default function ContestProblemsPage() {
     );
   }
 
-  // Check if user is disqualified or contest has ended - redirect to leaderboard immediately
-  useEffect(() => {
-    // Check if user is disqualified
-    if (enrollmentStatus?.isDisqualified) {
-      setLocation(`/contests/${contestId}/leaderboard`);
-      return;
-    }
-    
-    // Check if contest has been manually ended, but only if contest has actually ended by time
-    if (enrollmentStatus?.contestEndMethod === 'manually_ended') {
-      const now = new Date();
-      const endTime = new Date(contest.endTime);
-      if (now > endTime) {
-        setLocation(`/contests/${contestId}/leaderboard`);
-      }
-    }
-  }, [enrollmentStatus?.isDisqualified, enrollmentStatus?.contestEndMethod, contestId, setLocation, contest.endTime]);
 
   if (enrollmentStatus?.isDisqualified || (enrollmentStatus?.contestEndMethod === 'manually_ended' && new Date() > new Date(contest.endTime))) {
     // Show loading state while redirecting
@@ -2357,26 +2379,20 @@ export default function ContestProblemsPage() {
                         </div>
                       </div>
                       <Button
-                        onClick={async () => {
-                          try {
-                            const elem: any = document.documentElement;
-                            if (elem.requestFullscreen) await elem.requestFullscreen();
-                            else if (elem.webkitRequestFullscreen) await elem.webkitRequestFullscreen();
-                            else if (elem.msRequestFullscreen) await elem.msRequestFullscreen();
-                          } catch {}
-                          document.body.classList.add('contest-fullscreen');
-                          setSelectedProblem(problem);
-                          setActiveTab('problem');
-                          setLocation(`/contests/${contestId}/problems/${problem.id}`);
-                          setTimeout(() => {
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                          }, 0);
+                        onClick={() => {
+                            // Only one set of these lines is needed
+                            setSelectedProblem(problem);
+                            setActiveTab('problem');
+                            setLocation(`/contests/${contestId}/problems/${problem.id}`);
+                            setTimeout(() => {
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }, 0);
                         }}
                         className={`whitespace-nowrap ${isSolved ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 border border-gray-300' : ''}`}
                         variant={isSolved ? 'outline' : 'default'}
-                      >
+                    >
                         {isSolved ? 'Solve Again' : 'Solve'}
-                      </Button>
+                    </Button>
                     </div>
                   );
                 })}
