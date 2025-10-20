@@ -1372,46 +1372,6 @@ router.get('/:contestId/announcements', protect, async (req: AuthRequest, res: R
   }
 });
 
-router.post('/:contestId/end', protect, async (req: AuthRequest, res: Response) => {
-  try {
-    const { contestId } = req.params;
-    const userId = req.user?.id;
-
-    if (!userId) {
-      return res.status(401).json({ message: 'Authentication required' });
-    }
-
-    const contest = await contestStorage.getContest(contestId);
-    if (!contest) {
-      return res.status(404).json({ message: 'Contest not found' });
-    }
-
-    const now = new Date();
-    const endTime = new Date(contest.endTime);
-    
-    if (now > endTime) {
-      await contestStorage.updateContestEndMethod(contestId, 'time_expired');
-      return res.json({ 
-        message: 'Contest has already ended by time',
-        contestEndMethod: 'time_expired'
-      });
-    }
-
-    const success = await contestStorage.updateContestEndMethod(contestId, 'manually_ended');
-    
-    if (success) {
-      res.json({ 
-        message: 'Contest ended successfully',
-        contestEndMethod: 'manually_ended'
-      });
-    } else {
-      res.status(500).json({ message: 'Failed to end contest' });
-    }
-  } catch (error) {
-    console.error('Error ending contest:', error);
-    res.status(500).json({ message: 'Failed to end contest', error: (error as any).message });
-  }
-});
 
 router.post('/check-expired', protect, async (req: AuthRequest, res: Response) => {
   try {
@@ -1502,18 +1462,17 @@ router.post('/:contestId/problems/:problemId/auto-submit', protect, async (req: 
   }
 });
 
+// server/routes/contests.ts
+
 router.post('/:contestId/end-user', protect, async (req: AuthRequest, res: Response) => {
   try {
     const { contestId } = req.params;
     const userId = req.user?.id;
+    // ✅ FIX: Reads 'reason' and 'details' from the request body.
+    const { reason, details } = req.body;
 
     if (!userId) {
       return res.status(401).json({ message: 'Authentication required' });
-    }
-
-    const contest = await contestStorage.getContest(contestId);
-    if (!contest) {
-      return res.status(404).json({ message: 'Contest not found' });
     }
 
     const participants = await contestStorage.getContestParticipants(contestId);
@@ -1523,25 +1482,37 @@ router.post('/:contestId/end-user', protect, async (req: AuthRequest, res: Respo
       return res.status(403).json({ message: 'Must be registered for contest' });
     }
 
+    // This action is now common for both voluntary exit and disqualification.
     const endMethodSuccess = await contestStorage.updateParticipantContestEndMethod(contestId, userId, 'manually_ended');
-    const disqualifySuccess = await contestStorage.disqualifyParticipant(contestId, userId, 'Excessive tab switching detected');
     
-    if (endMethodSuccess && disqualifySuccess) {
-      console.log(`[CONTEST] User ${userId} terminated and disqualified from contest ${contestId} due to tab switching`);
-      res.json({ 
-        message: 'Contest ended for user due to tab switching - user disqualified',
+    if (!endMethodSuccess) {
+      return res.status(500).json({ message: 'Failed to end contest for user' });
+    }
+
+    // ✅ CONDITIONAL LOGIC: Only disqualifies if the reason is 'disqualified'.
+    if (reason === 'disqualified') {
+      const disqualificationReason = details || 'Rule violation detected';
+      await contestStorage.disqualifyParticipant(contestId, userId, disqualificationReason);
+      
+      console.log(`[CONTEST] User ${userId} was disqualified from contest ${contestId}. Reason: ${disqualificationReason}`);
+      return res.json({ 
+        message: 'User participation ended and was disqualified.',
         contestEndMethod: 'manually_ended',
         isDisqualified: true,
-        disqualificationReason: 'Excessive tab switching detected'
       });
-    } else {
-      console.error(`[CONTEST] Failed to properly terminate user ${userId} from contest ${contestId}. End method: ${endMethodSuccess}, Disqualify: ${disqualifySuccess}`);
-      res.status(500).json({ message: 'Failed to end contest for user' });
     }
+
+    // This is the default path for a user who clicks "End Contest" normally.
+    console.log(`[CONTEST] User ${userId} voluntarily ended participation in contest ${contestId}`);
+    res.json({ 
+      message: 'Contest ended for user.',
+      contestEndMethod: 'manually_ended',
+      isDisqualified: false,
+    });
+
   } catch (error) {
     console.error('Error ending contest for user:', error);
     res.status(500).json({ message: 'Failed to end contest for user', error: (error as any).message });
   }
 });
-
 export default router;

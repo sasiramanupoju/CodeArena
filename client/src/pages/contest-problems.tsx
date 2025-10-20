@@ -228,163 +228,120 @@ export default function ContestProblemsPage() {
   };
 
   // Function to confirm contest ending and auto-submit code
-  const confirmEndContest = async () => {
-      try {
-        // ✅ FIX: The API endpoint is changed to affect only the current user
-        const endContestResponse = await fetch(`/api/contests/${contestId}/end-user`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-        });
+const confirmEndContest = async () => {
+    try {
+      // ✅ FIX: This now correctly calls the user-specific endpoint with no request body,
+      // indicating a voluntary exit, not a disqualification.
+      const endUserResponse = await fetch(`/api/contests/${contestId}/end-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
 
-        if (!endContestResponse.ok) {
-          // Updated error message for clarity
-          throw new Error('Failed to end contest for this user');
-        }
+      if (!endUserResponse.ok) {
+        throw new Error('Failed to end your contest participation.');
+      }
 
-        const endContestResult = await endContestResponse.json();
-        console.log('User contest participation ended successfully:', endContestResult);
-        
-        // Set localStorage flag for backward compatibility (can be removed later)
-        const uid = localStorage.getItem('userId') || 'me';
-        localStorage.setItem(`contest:${contestId}:endedBy:${uid}`, 'true');
-        
-        // Auto-submit only problems that haven't been submitted or aren't accepted
-        const problemsToSubmit: Array<{problem: ContestProblem, code: string, language: string}> = [];
-        
-        if (contest?.problems) {
-          for (const problem of contest.problems) {
-            const codeKey = `contest:${contestId}:problem:${problem.id}:code`;
-            const langKey = `contest:${contestId}:problem:${problem.id}:language`;
-            
-            try {
-              const storedCode = localStorage.getItem(codeKey);
-              const storedLang = localStorage.getItem(langKey) || 'javascript';
-              
-              if (storedCode && storedCode.trim()) {
-                // Check if this problem has already been submitted (regardless of status)
-                const currentStatus = getSubmissionStatus(problem.id);
-                const hasSubmission = currentStatus !== null;
-                
-                // Only submit if:
-                // 1. No submission exists yet, OR
-                // 2. Submission exists but status is not 'accepted' AND we have new/modified code
-                if (!hasSubmission) {
-                  problemsToSubmit.push({
-                    problem,
-                    code: storedCode,
-                    language: storedLang
-                  });
-                  console.log(`Will submit problem ${problem.title} - no previous submission`);
-                } else if (currentStatus !== 'accepted') {
-                  // Check if code has changed since last submission
-                  const lastSubmission = submissions?.find(s => s.problemId === problem.id);
-                  if (lastSubmission && lastSubmission.code !== storedCode) {
-                    problemsToSubmit.push({
-                      problem,
-                      code: storedCode,
-                      language: storedLang
-                    });
-                    console.log(`Will submit problem ${problem.title} - code modified since last submission (status: ${currentStatus})`);
-                  } else {
-                    console.log(`Skipping problem ${problem.title} - already submitted with same code (status: ${currentStatus})`);
-                  }
-                } else {
-                  console.log(`Skipping problem ${problem.title} - already accepted`);
-                }
-              }
-           } catch (error) {
-              console.error(`Failed to retrieve code for problem ${problem.id}:`, error);
-            }
-          }
-        }
-        
-        // Submit only problems that need submission
-        let submittedCount = 0;
-        let skippedCount = 0;
-        
-        if (problemsToSubmit.length > 0) {
-        for (const {problem, code, language} of problemsToSubmit) {
-          try {
-            const response = await fetch(`/api/contests/${contestId}/problems/${problem.id}/submit`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`,
-              },
-              body: JSON.stringify({
-                code,
-                language,
-                autoSubmitted: true,
-              }),
-            });
-            
-            if (response.ok) {
-              submittedCount++;
-              console.log(`Auto-submitted solution for problem: ${problem.title}`);
-            } else {
-              console.error(`Failed to auto-submit solution for problem: ${problem.title}`);
-            }
-          } catch (error) {
-            console.error(`Error auto-submitting solution for problem ${problem.title}:`, error);
-          }
-          }
-        } else {
-          // Count how many problems were already accepted
-          skippedCount = contest?.problems?.filter(problem => {
-            const status = getSubmissionStatus(problem.id);
-            return status === 'accepted';
-          }).length || 0;
-        }
-        
-        // Show appropriate message
-        if (submittedCount > 0) {
-          toast({
-            title: 'Contest Ended Successfully',
-            description: `${submittedCount} solution(s) submitted, ${skippedCount} already accepted.`,
-            variant: 'default',
-          });
-        } else if (skippedCount > 0) {
-          toast({
-            title: 'Contest Ended',
-            description: `All ${skippedCount} problems already accepted. No new submissions needed.`,
-            variant: 'default',
-          });
-        } else {
-          toast({
-            title: 'Contest Ended',
-            description: 'No solutions to submit. Contest ended successfully.',
-            variant: 'default',
-          });
-        }
-        
-        // Reset tab switch count for this contest (in case user re-enters)
-        const tabSwitchKey = `contest:${contestId}:tabSwitchCount`;
-        try {
-          localStorage.removeItem(tabSwitchKey);
-        } catch (error) {
-          console.log('Failed to clear tab switch count:', error);
-        }
-        
-        // Close dialog and exit contest
-        setShowEndContestDialog(false);
-        exitContestAndRedirect();
-        
-      } catch (error) {
-        console.error('Error ending contest:', error);
-        toast({
-          title: 'Error Ending Contest',
-          description: 'Failed to auto-submit solutions. Contest will still be ended.',
-          variant: 'destructive',
-        });
-        
-        // Still end contest even if auto-submission failed
-        setShowEndContestDialog(false);
-        exitContestAndRedirect();
-      }
-    };
+      console.log('User contest participation ended successfully.');
+      
+      // Your original localStorage logic (preserved)
+      const uid = localStorage.getItem('userId') || 'me';
+      localStorage.setItem(`contest:${contestId}:endedBy:${uid}`, 'true');
+      
+      // Your original auto-submit logic (preserved)
+      const problemsToSubmit: Array<{problem: ContestProblem, code: string, language: string}> = [];
+      
+      if (contest?.problems) {
+        for (const problem of contest.problems) {
+          const codeKey = `contest:${contestId}:problem:${problem.id}:code`;
+          const langKey = `contest:${contestId}:problem:${problem.id}:language`;
+          
+          try {
+            const storedCode = localStorage.getItem(codeKey);
+            const storedLang = localStorage.getItem(langKey) || 'javascript';
+            
+            if (storedCode && storedCode.trim()) {
+              const currentStatus = getSubmissionStatus(problem.id);
+              const hasSubmission = currentStatus !== null;
+              
+              if (!hasSubmission) {
+                problemsToSubmit.push({ problem, code: storedCode, language: storedLang });
+              } else if (currentStatus !== 'accepted') {
+                const lastSubmission = submissions?.find(s => s.problemId === problem.id);
+                if (lastSubmission && lastSubmission.code !== storedCode) {
+                  problemsToSubmit.push({ problem, code: storedCode, language: storedLang });
+                }
+              }
+         }
+          } catch (error) {
+            console.error(`Failed to retrieve code for problem ${problem.id}:`, error);
+          }
+        }
+      }
+      
+      let submittedCount = 0;
+      let skippedCount = 0;
+      
+      if (problemsToSubmit.length > 0) {
+        for (const {problem, code, language} of problemsToSubmit) {
+          try {
+            const response = await fetch(`/api/contests/${contestId}/problems/${problem.id}/submit`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+              },
+              body: JSON.stringify({ code, language, autoSubmitted: true }),
+            });
+            
+            if (response.ok) {
+              submittedCount++;
+            }
+          } catch (error) {
+            console.error(`Error auto-submitting solution for problem ${problem.title}:`, error);
+          }
+        }
+      }
+      
+      skippedCount = (contest?.problems?.length || 0) - submittedCount;
+      
+      if (submittedCount > 0) {
+        toast({
+          title: 'Contest Ended',
+          description: `Your participation has ended. ${submittedCount} solution(s) were submitted.`,
+        });
+      } else {
+        toast({
+          title: 'Contest Ended',
+          description: 'Your participation has ended. No new solutions were submitted.',
+        });
+      }
+      
+      // Reset tab switch count for this contest (in case user re-enters)
+      const tabSwitchKey = `contest:${contestId}:tabSwitchCount`;
+      try {
+        localStorage.removeItem(tabSwitchKey);
+      } catch (error) {
+        console.log('Failed to clear tab switch count:', error);
+      }
+      
+      // Close dialog and exit contest
+      setShowEndContestDialog(false);
+      exitContestAndRedirect();
+      
+    } catch (error) {
+      console.error('Error ending contest:', error);
+      toast({
+        title: 'Error Ending Contest',
+        description: 'Could not end your participation. Please try again.',
+        variant: 'destructive',
+      });
+      
+      setShowEndContestDialog(false);
+    }
+  };
 
   // Tab switch detection for contest pages - will be defined after terminateContestAndSubmit
 
@@ -1562,22 +1519,27 @@ export default function ContestProblemsPage() {
       
       // Now update the user's contest status in the database (after submissions are complete)
       try {
-        const endUserResponse = await fetch(`/api/contests/${contestId}/end-user`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-        });
-        
-        if (endUserResponse.ok) {
-          console.log('User contest status updated in database due to tab switching');
-        } else {
-          console.warn('Failed to update user contest status in database:', await endUserResponse.text());
-        }
-      } catch (error) {
-        console.warn('Error updating user contest status in database:', error);
-      }
+      // ✅ FIX: This fetch call now includes a body to trigger disqualification.
+        const endUserResponse = await fetch(`/api/contests/${contestId}/end-user`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify({
+            reason: 'disqualified',
+            details: 'Excessive tab switching detected'
+          }),
+        });
+        
+        if (endUserResponse.ok) {
+          console.log('User contest status updated in database due to tab switching');
+        } else {
+          console.warn('Failed to update user contest status in database:', await endUserResponse.text());
+        }
+      } catch (error) {
+        console.warn('Error updating user contest status in database:', error);
+      }
       
       // Reset tab switch count for this contest (in case user re-enters)
       const tabSwitchKey = `contest:${contestId}:tabSwitchCount`;
