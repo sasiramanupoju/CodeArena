@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Search, Calendar, Clock, Users, Trophy, Play, CheckCircle, Star, Award } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation } from 'wouter';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Contest {
   id: string;
@@ -24,7 +25,8 @@ interface Contest {
     problemsSolved: number;
     rank: number;
   };
-  contestEndMethod?: 'time_expired' | 'manually_ended';
+  contestEndMethod?: 'time_expired' | 'manually_ended' | null;
+  participantContestEndMethod?: { [key: string]: 'manually_ended' | 'disqualified' | null };
 }
 
 export default function ContestsPage() {
@@ -32,9 +34,8 @@ export default function ContestsPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'upcoming' | 'active' | 'ended'>('all');
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const userId = localStorage.getItem('userId') || 'me';
+  const { user } = useAuth();
 
-  // Fetch available contests
   const { data: contests, isLoading } = useQuery<Contest[]>({
     queryKey: ['/api/contests'],
     queryFn: async () => {
@@ -48,9 +49,8 @@ export default function ContestsPage() {
     },
   });
 
-  // Fetch enrollment status for each contest
   const { data: enrollmentStatuses } = useQuery({
-    queryKey: ['/api/contests/enrollment-statuses'],
+    queryKey: ['/api/contests/enrollment-statuses', contests],
     queryFn: async () => {
       if (!contests || contests.length === 0) return {};
       
@@ -80,52 +80,48 @@ export default function ContestsPage() {
       }, {} as Record<string, any>);
     },
     enabled: !!contests && contests.length > 0,
-    staleTime: 30000, // Cache for 30 seconds
+    staleTime: 30000,
   });
 
-  // Determine contest status
   const getContestStatus = (contest: Contest): 'upcoming' | 'active' | 'ended' => {
     const now = new Date();
     const startTime = new Date(contest.startTime);
     const endTime = new Date(contest.endTime);
+    const userId = user?.id;
 
-    // Add debugging
     console.log(`[CONTEST-STATUS] Contest: ${contest.title}`);
     console.log(`[CONTEST-STATUS] Now: ${now.toISOString()}`);
     console.log(`[CONTEST-STATUS] Start: ${startTime.toISOString()}`);
     console.log(`[CONTEST-STATUS] End: ${endTime.toISOString()}`);
     console.log(`[CONTEST-STATUS] Contest end method: ${contest.contestEndMethod}`);
-
-    // Check if contest has been manually ended or time expired
-    // BUT only if the contest has actually ended based on time
-    // This prevents rescheduled contests from showing as ended
-    if (contest.contestEndMethod === 'manually_ended' || contest.contestEndMethod === 'time_expired') {
-      // Only consider the contest ended if it's actually past the end time
-      if (now > endTime) {
-        console.log(`[CONTEST-STATUS] Contest ended: ${contest.contestEndMethod} and past end time`);
+    
+    if (userId && contest.participantContestEndMethod?.[userId]) {
+        console.log(`[CONTEST-STATUS] Contest ended for user ${userId} via participantContestEndMethod.`);
         return 'ended';
-      } else {
-        console.log(`[CONTEST-STATUS] Contest was ended but rescheduled - ignoring end method`);
-      }
     }
 
-    // Check if contest has actually ended based on current time
+    if (contest.contestEndMethod === 'manually_ended' || contest.contestEndMethod === 'time_expired') {
+      if (now > endTime) {
+        console.log(`[CONTEST-STATUS] Contest ended globally: ${contest.contestEndMethod} and past end time`);
+        return 'ended';
+      } else {
+        console.log(`[CONTEST-STATUS] Contest was globally ended but rescheduled - ignoring global end method`);
+      }
+    }
+    
     if (now > endTime) {
       console.log(`[CONTEST-STATUS] Contest has ended based on time`);
       return 'ended';
     }
-
+    
     if (now < startTime) return 'upcoming';
     if (now >= startTime && now <= endTime) return 'active';
     
-    // Fallback: if we reach here, the contest should be ended
     console.log(`[CONTEST-STATUS] Fallback: marking contest as ended`);
     return 'ended';
   };
 
-  // Filter contests based on search and status
   const filteredContests = contests?.filter(contest => {
-    // Add debugging for contest data
     console.log(`[CONTEST-DATA] Contest: ${contest.title}`);
     console.log(`[CONTEST-DATA] Start time: ${contest.startTime}`);
     console.log(`[CONTEST-DATA] End time: ${contest.endTime}`);
@@ -133,7 +129,7 @@ export default function ContestsPage() {
     console.log(`[CONTEST-DATA] Raw end: ${typeof contest.endTime} - ${contest.endTime}`);
     
     const matchesSearch = contest.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         contest.description.toLowerCase().includes(searchTerm.toLowerCase());
+                          contest.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || getContestStatus(contest) === statusFilter;
     return matchesSearch && matchesStatus;
   }) || [];
@@ -153,12 +149,8 @@ export default function ContestsPage() {
     return new Date(dateString).toLocaleString();
   };
 
-  const handleContestClick = (contest: Contest) => {
-    const status = getContestStatus(contest);
-    const hasEnded = contest.contestEndMethod === 'manually_ended' || contest.contestEndMethod === 'time_expired';
-    const endedByUser = localStorage.getItem(`contest:${contest.id}:endedBy:${userId}`) === 'true';
-    
-    // Get enrollment status to check if user has participated
+  // ✅ FINAL FIX: The function now accepts the `finalStatus` directly.
+  const handleContestClick = (contest: Contest, status: 'upcoming' | 'active' | 'ended') => {
     const enrollmentStatus = enrollmentStatuses?.[contest.id];
     const hasParticipated = enrollmentStatus && (
       enrollmentStatus.submissions?.length > 0 || 
@@ -166,12 +158,11 @@ export default function ContestsPage() {
       enrollmentStatus.isDisqualified
     );
     
-    if (hasEnded || status === 'ended' || endedByUser) {
-      // If user has participated, show results; otherwise, contest is over
+    // The logic now correctly uses the definitive status passed into it.
+    if (status === 'ended') {
       if (hasParticipated) {
         setLocation(`/contests/${contest.id}/results`);
       } else {
-        // Contest has ended and user hasn't participated - show a message
         toast({
           title: 'Contest Ended',
           description: 'This contest has ended. You can no longer participate.',
@@ -208,7 +199,6 @@ export default function ContestsPage() {
         </p>
       </div>
 
-      {/* Search and Filter */}
       <div className="mb-6 flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -233,154 +223,127 @@ export default function ContestsPage() {
         </div>
       </div>
 
-      {/* Contests Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredContests
           .filter((contest) => {
-            const status = getContestStatus(contest);
-            const localUserId = localStorage.getItem('userId');
-            const isEnrolled = (contest as any).isEnrolled ?? contest.participants?.some((p: any) => p.userId === localUserId) ?? false;
-            
-            // Show all contests but prioritize enrolled ones
-            // For active contests, show enrolled users prominently
-            // For upcoming contests, show all (user can enroll)
-            // For ended contests, show all (user can view results)
             return true;
           })
           .sort((a, b) => {
-            // Sort by: enrolled first, then by status (active > upcoming > ended), then by start time
-            const aStatus = getContestStatus(a);
-            const bStatus = getContestStatus(b);
-            const aEnrolled = (a as any).isEnrolled ?? a.participants?.some((p: any) => p.userId === localStorage.getItem('userId')) ?? false;
-            const bEnrolled = (b as any).isEnrolled ?? b.participants?.some((p: any) => p.userId === localStorage.getItem('userId')) ?? false;
+            const aEnrolled = a.isEnrolled ?? a.participants?.some((p: any) => p.userId === user?.id) ?? false;
+            const bEnrolled = b.isEnrolled ?? b.participants?.some((p: any) => p.userId === user?.id) ?? false;
             
-            // Enrolled contests first
             if (aEnrolled && !bEnrolled) return -1;
             if (!aEnrolled && bEnrolled) return 1;
             
-            // Then by status priority
             const statusPriority = { 'active': 3, 'upcoming': 2, 'ended': 1 };
-            const aPriority = statusPriority[aStatus] || 0;
-            const bPriority = statusPriority[bStatus] || 0;
+            const aPriority = statusPriority[getContestStatus(a)] || 0;
+            const bPriority = statusPriority[getContestStatus(b)] || 0;
             
             if (aPriority !== bPriority) return bPriority - aPriority;
             
-            // Finally by start time (newest first)
             return new Date(b.startTime).getTime() - new Date(a.startTime).getTime();
           })
           .map((contest) => {
-          const status = getContestStatus(contest);
-          const localUserId = localStorage.getItem('userId');
-          const isEnrolled = (contest as any).isEnrolled ?? contest.participants?.some((p: any) => p.userId === localUserId) ?? false;
-          const participantCount = contest.participantCount ?? contest.participants?.length ?? 0;
-          const endedByUser = localStorage.getItem(`contest:${contest.id}:endedBy:${localUserId || 'me'}`) === 'true';
-          
-          // Get enrollment status from the database
-          const enrollmentStatus = enrollmentStatuses?.[contest.id];
-          const hasParticipated = enrollmentStatus && (
-            enrollmentStatus.submissions?.length > 0 || 
-            enrollmentStatus.contestEndMethod || 
-            enrollmentStatus.isDisqualified
-          );
+            const initialStatus = getContestStatus(contest);
+            const isEnrolled = contest.isEnrolled ?? contest.participants?.some((p: any) => p.userId === user?.id) ?? false;
+            const participantCount = contest.participantCount ?? contest.participants?.length ?? 0;
+            
+            const enrollmentStatus = enrollmentStatuses?.[contest.id];
+            const hasParticipated = enrollmentStatus && (
+              enrollmentStatus.submissions?.length > 0 || 
+              enrollmentStatus.contestEndMethod || 
+              enrollmentStatus.isDisqualified
+            );
 
-          return (
-            <Card key={contest.id} className="hover:shadow-lg transition-shadow cursor-pointer">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg mb-2">{contest.title}</CardTitle>
-                    {getStatusBadge(status)}
+            const finalStatus = (initialStatus === 'active' && enrollmentStatus?.contestEndMethod) ? 'ended' : initialStatus;
+
+            return (
+              <Card key={contest.id} className="hover:shadow-lg transition-shadow cursor-pointer">
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <CardTitle className="text-lg mb-2">{contest.title}</CardTitle>
+                      {getStatusBadge(finalStatus)}
+                    </div>
+                    {isEnrolled && (
+                      <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                        Enrolled
+                      </Badge>
+                    )}
                   </div>
-                  {isEnrolled && (
-                    <Badge variant="secondary" className="bg-purple-100 text-purple-800">
-                      Enrolled
-                    </Badge>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <CardDescription className="mb-4 line-clamp-2">
-                  {contest.description}
-                </CardDescription>
-                
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    {formatDateTime(contest.startTime)}
-                  </div>
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Clock className="h-4 w-4 mr-2" />
-                    {contest.duration} minutes
-                  </div>
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Users className="h-4 w-4 mr-2" />
-                    {participantCount} participants
-                  </div>
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Trophy className="h-4 w-4 mr-2" />
-                    {contest.problems?.length || 0} problems
-                  </div>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription className="mb-4 line-clamp-2">
+                    {contest.description}
+                  </CardDescription>
                   
-                  {/* User Progress for Enrolled Contests */}
-                  {isEnrolled && contest.userProgress && (
-                    <>
-                      {contest.userProgress.problemsSolved > 0 && (
-                        <div className="flex items-center text-sm text-green-600 font-medium">
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          {contest.userProgress.problemsSolved} problems solved
-                        </div>
-                      )}
-                      {contest.userProgress.rank && contest.userProgress.rank > 0 && (
-                        <div className="flex items-center text-sm text-purple-600 font-medium">
-                          <Award className="h-4 w-4 mr-2" />
-                          Rank #{contest.userProgress.rank}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center text-sm text-gray-600">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      {formatDateTime(contest.startTime)}
+                    </div>
+                    <div className="flex items-center text-sm text-gray-600">
+                      <Clock className="h-4 w-4 mr-2" />
+                      {contest.duration} minutes
+                    </div>
+                    <div className="flex items-center text-sm text-gray-600">
+                      <Users className="h-4 w-4 mr-2" />
+                      {participantCount} participants
+                    </div>
+                    <div className="flex items-center text-sm text-gray-600">
+                      <Trophy className="h-4 w-4 mr-2" />
+                      {contest.problems?.length || 0} problems
+                    </div>
+                    
+                    {isEnrolled && contest.userProgress && (
+                      <>
+                        {contest.userProgress.problemsSolved > 0 && (
+                          <div className="flex items-center text-sm text-green-600 font-medium">
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            {contest.userProgress.problemsSolved} problems solved
+                          </div>
+                        )}
+                        {contest.userProgress.rank > 0 && (
+                          <div className="flex items-center text-sm text-purple-600 font-medium">
+                            <Award className="h-4 w-4 mr-2" />
+                            Rank #{contest.userProgress.rank}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
 
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => handleContestClick(contest)}
-                    className="flex-1"
-                    variant={isEnrolled ? "default" : "outline"}
-                    disabled={(() => {
-                      // Disable button for ended contests where user hasn't participated
-                      if (status === 'ended' || endedByUser) {
-                        return !hasParticipated;
-                      }
-                      return false;
-                    })()}
-                  >
-                    <Play className="h-4 w-4 mr-2" />
-                    {(() => {
-                      // For ended contests (time expired or manually ended)
-                      if (status === 'ended' || endedByUser) {
-                        // If user has participated, show results; otherwise, contest is over
-                        return hasParticipated ? 'View Results' : 'Contest Ended';
-                      }
-                      
-                      // For upcoming contests
-                      if (status === 'upcoming') {
-                        return isEnrolled ? 'View Details' : 'Join Contest';
-                      }
-                      
-                      // For active contests
-                      if (status === 'active') {
-                        if (!isEnrolled) return 'Start Contest';
-                        return hasParticipated ? 'Resume Contest' : 'Start Contest';
-                      }
-                      
-                      // Fallback
-                      return 'View Results';
-                    })()}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+                  <div className="flex gap-2">
+                    <Button
+                      // ✅ FINAL FIX: The click handler now receives the correct `finalStatus`
+                      onClick={() => handleContestClick(contest, finalStatus)}
+                      className="flex-1"
+                      variant={isEnrolled ? "default" : "outline"}
+                      disabled={finalStatus === 'ended' && !hasParticipated}
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      {(() => {
+                        if (finalStatus === 'ended') {
+                          return hasParticipated ? 'View Results' : 'Contest Ended';
+                        }
+                        
+                        if (finalStatus === 'upcoming') {
+                          return isEnrolled ? 'View Details' : 'Join Contest';
+                        }
+                        
+                        if (finalStatus === 'active') {
+                          if (!isEnrolled) return 'Start Contest';
+                          return hasParticipated ? 'Resume Contest' : 'Start Contest';
+                        }
+                        
+                        return 'View Results';
+                      })()}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
       </div>
 
       {filteredContests.length === 0 && (

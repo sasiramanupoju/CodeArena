@@ -1468,7 +1468,6 @@ router.post('/:contestId/end-user', protect, async (req: AuthRequest, res: Respo
   try {
     const { contestId } = req.params;
     const userId = req.user?.id;
-    // ✅ FIX: Reads 'reason' and 'details' from the request body.
     const { reason, details } = req.body;
 
     if (!userId) {
@@ -1482,14 +1481,12 @@ router.post('/:contestId/end-user', protect, async (req: AuthRequest, res: Respo
       return res.status(403).json({ message: 'Must be registered for contest' });
     }
 
-    // This action is now common for both voluntary exit and disqualification.
     const endMethodSuccess = await contestStorage.updateParticipantContestEndMethod(contestId, userId, 'manually_ended');
     
     if (!endMethodSuccess) {
       return res.status(500).json({ message: 'Failed to end contest for user' });
     }
 
-    // ✅ CONDITIONAL LOGIC: Only disqualifies if the reason is 'disqualified'.
     if (reason === 'disqualified') {
       const disqualificationReason = details || 'Rule violation detected';
       await contestStorage.disqualifyParticipant(contestId, userId, disqualificationReason);
@@ -1502,7 +1499,6 @@ router.post('/:contestId/end-user', protect, async (req: AuthRequest, res: Respo
       });
     }
 
-    // This is the default path for a user who clicks "End Contest" normally.
     console.log(`[CONTEST] User ${userId} voluntarily ended participation in contest ${contestId}`);
     res.json({ 
       message: 'Contest ended for user.',

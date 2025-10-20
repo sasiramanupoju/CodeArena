@@ -12,6 +12,19 @@ import { MonacoEditor } from '@/components/MonacoEditor';
 import { useAuth } from '@/hooks/useAuth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
+// AlertDialog components are needed for the confirmation
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+
 interface ContestProblem {
   id: string;
   title: string;
@@ -61,7 +74,6 @@ interface Submission {
 }
 
 export default function ContestProblemsPage() {
-  // Extend Document interface for fullscreen properties
   interface ExtendedDocument extends Document {
     webkitFullscreenElement?: Element | null;
     msFullscreenElement?: Element | null;
@@ -100,20 +112,16 @@ export default function ContestProblemsPage() {
   const [useCustomInput, setUseCustomInput] = useState(false);
   const [customInput, setCustomInput] = useState("");
   
-  // Tab switch tracking state
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [showTabSwitchDialog, setShowTabSwitchDialog] = useState(false);
   const [isContestTerminated, setIsContestTerminated] = useState(false);
   
-  // Contest ending confirmation dialog state
   const [showEndContestDialog, setShowEndContestDialog] = useState(false);
   
-  // Refs for tab switching detection
   const wasVisibleRef = useRef(!document.hidden);
   const hasFocusRef = useRef(document.hasFocus());
   const lastSwitchTimeRef = useRef(Date.now());
 
-  // Persist code per-problem locally so we can auto-submit for all
   useEffect(() => {
     if (!selectedProblem) return;
     const key = `contest:${contestId}:problem:${selectedProblem.id}:code`;
@@ -122,7 +130,6 @@ export default function ContestProblemsPage() {
     } catch {}
   }, [code, selectedProblem, contestId]);
 
-  // Persist language per-problem locally for auto-submission
   useEffect(() => {
     if (!selectedProblem) return;
     const key = `contest:${contestId}:problem:${selectedProblem.id}:language`;
@@ -131,19 +138,15 @@ export default function ContestProblemsPage() {
     } catch {}
   }, [language, selectedProblem, contestId]);
 
-  // Reset tab switch count when entering a new contest or refreshing page
   useEffect(() => {
-    // Reset all tab switching state for new contest
     setTabSwitchCount(0);
     setShowTabSwitchDialog(false);
     setIsContestTerminated(false);
     
-    // Reset refs
     wasVisibleRef.current = !document.hidden;
     hasFocusRef.current = document.hasFocus();
     lastSwitchTimeRef.current = Date.now();
     
-    // Clear any existing localStorage data for this contest
     const key = `contest:${contestId}:tabSwitchCount`;
     try {
       localStorage.removeItem(key);
@@ -154,9 +157,7 @@ export default function ContestProblemsPage() {
     console.log(`Tab switch count reset for new contest: ${contestId}`);
     console.log(`Initial state: isVisible=${!document.hidden}, hasFocus=${document.hasFocus()}`);
     
-    // Cleanup function to reset tab switch count when leaving contest
     return () => {
-      // If user navigates away from contest, reset the count
       const cleanupKey = `contest:${contestId}:tabSwitchCount`;
       try {
         localStorage.removeItem(cleanupKey);
@@ -167,9 +168,7 @@ export default function ContestProblemsPage() {
     };
   }, [contestId]);
   
-  // Additional reset on page refresh/component mount
   useEffect(() => {
-    // Ensure tab switch count is reset on page refresh
     if (contestId) {
     const key = `contest:${contestId}:tabSwitchCount`;
     try {
@@ -179,28 +178,23 @@ export default function ContestProblemsPage() {
       console.log('Failed to clear tab switch count on refresh:', error);
     }
     }
-  }, [contestId]); // Added contestId to dependencies
+  }, [contestId]);
 
 
 
-  // Check if we're in contest fullscreen mode
   useEffect(() => {
     const checkFullscreen = () => {
       const isInFullscreen = document.body.classList.contains('contest-fullscreen');
       setIsFullscreen(isInFullscreen);
     };
 
-    // Check initially
     checkFullscreen();
 
-    // Set up observer to watch for class changes
     const observer = new MutationObserver(checkFullscreen);
     observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
-    // Listen for fullscreen change events
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement && !extendedDocument.webkitFullscreenElement && !extendedDocument.msFullscreenElement) {
-        // User manually exited full-screen mode
         document.body.classList.remove('contest-fullscreen');
         setIsFullscreen(false);
       }
@@ -217,135 +211,118 @@ export default function ContestProblemsPage() {
       document.removeEventListener('msfullscreenchange', handleFullscreenChange);
     };
   }, []);
- 
-
-  // Function to auto-submit all problems and terminate contest (for tab switching)
-  // This will be defined after the required functions are declared
-
-  // Function to handle contest ending with confirmation dialog
+  
   const handleEndContest = () => {
     setShowEndContestDialog(true);
   };
+  
+  const exitContestAndRedirect = () => {
+    document.body.classList.remove('contest-fullscreen');
+    
+    if (document.fullscreenElement || extendedDocument.webkitFullscreenElement || extendedDocument.msFullscreenElement) {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (extendedDocument.webkitExitFullscreen) {
+        extendedDocument.webkitExitFullscreen();
+      } else if (extendedDocument.msExitFullscreen) {
+        extendedDocument.msExitFullscreen();
+      }
+    }
+    
+    // Redirect to the contest results page after ending
+    setLocation(`/contests/${contestId}/results`);
+  };
 
-  // Function to confirm contest ending and auto-submit code
-const confirmEndContest = async () => {
-    try {
-      // ✅ FIX: This now correctly calls the user-specific endpoint with no request body,
-      // indicating a voluntary exit, not a disqualification.
-      const endUserResponse = await fetch(`/api/contests/${contestId}/end-user`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
+  // ✅ FINAL FIX: useMutation now handles the API call and cache invalidation.
+  const endContestMutation = useMutation({
+    mutationFn: async () => {
+      // Step 1: Tell the server the user is voluntarily ending their participation.
+      const endUserResponse = await fetch(`/api/contests/${contestId}/end-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ reason: 'voluntary' })
+      });
 
-      if (!endUserResponse.ok) {
-        throw new Error('Failed to end your contest participation.');
-      }
+      if (!endUserResponse.ok) {
+        throw new Error('Failed to end your contest participation.');
+      }
 
-      console.log('User contest participation ended successfully.');
-      
-      // Your original localStorage logic (preserved)
-      const uid = localStorage.getItem('userId') || 'me';
-      localStorage.setItem(`contest:${contestId}:endedBy:${uid}`, 'true');
-      
-      // Your original auto-submit logic (preserved)
-      const problemsToSubmit: Array<{problem: ContestProblem, code: string, language: string}> = [];
-      
-      if (contest?.problems) {
-        for (const problem of contest.problems) {
-          const codeKey = `contest:${contestId}:problem:${problem.id}:code`;
-          const langKey = `contest:${contestId}:problem:${problem.id}:language`;
-          
-          try {
-            const storedCode = localStorage.getItem(codeKey);
-            const storedLang = localStorage.getItem(langKey) || 'javascript';
-            
-            if (storedCode && storedCode.trim()) {
-              const currentStatus = getSubmissionStatus(problem.id);
-              const hasSubmission = currentStatus !== null;
-              
-              if (!hasSubmission) {
-                problemsToSubmit.push({ problem, code: storedCode, language: storedLang });
-              } else if (currentStatus !== 'accepted') {
-                const lastSubmission = submissions?.find(s => s.problemId === problem.id);
-                if (lastSubmission && lastSubmission.code !== storedCode) {
-                  problemsToSubmit.push({ problem, code: storedCode, language: storedLang });
-                }
-              }
-         }
-          } catch (error) {
-            console.error(`Failed to retrieve code for problem ${problem.id}:`, error);
-          }
-        }
-      }
-      
-      let submittedCount = 0;
-      let skippedCount = 0;
-      
-      if (problemsToSubmit.length > 0) {
-        for (const {problem, code, language} of problemsToSubmit) {
-          try {
-            const response = await fetch(`/api/contests/${contestId}/problems/${problem.id}/submit`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`,
-              },
-              body: JSON.stringify({ code, language, autoSubmitted: true }),
-            });
-            
-            if (response.ok) {
-              submittedCount++;
-            }
-          } catch (error) {
-            console.error(`Error auto-submitting solution for problem ${problem.title}:`, error);
-          }
-        }
-      }
-      
-      skippedCount = (contest?.problems?.length || 0) - submittedCount;
-      
-      if (submittedCount > 0) {
-        toast({
-          title: 'Contest Ended',
-          description: `Your participation has ended. ${submittedCount} solution(s) were submitted.`,
-        });
-      } else {
-        toast({
-          title: 'Contest Ended',
-          description: 'Your participation has ended. No new solutions were submitted.',
-        });
-      }
-      
-      // Reset tab switch count for this contest (in case user re-enters)
-      const tabSwitchKey = `contest:${contestId}:tabSwitchCount`;
-      try {
-        localStorage.removeItem(tabSwitchKey);
-      } catch (error) {
-        console.log('Failed to clear tab switch count:', error);
-      }
-      
-      // Close dialog and exit contest
-      setShowEndContestDialog(false);
-      exitContestAndRedirect();
-      
-    } catch (error) {
-      console.error('Error ending contest:', error);
-      toast({
-        title: 'Error Ending Contest',
-        description: 'Could not end your participation. Please try again.',
-        variant: 'destructive',
-      });
-      
-      setShowEndContestDialog(false);
-    }
-  };
+      console.log('User contest participation ended successfully on the server.');
 
-  // Tab switch detection for contest pages - will be defined after terminateContestAndSubmit
+      // Step 2: Run your existing auto-submission logic.
+      const problemsToSubmit: Array<{problem: ContestProblem, code: string, language: string}> = [];
+      if (contest?.problems) {
+        for (const problem of contest.problems) {
+          const codeKey = `contest:${contestId}:problem:${problem.id}:code`;
+          const langKey = `contest:${contestId}:problem:${problem.id}:language`;
+          try {
+            const storedCode = localStorage.getItem(codeKey);
+            const storedLang = localStorage.getItem(langKey) || 'javascript';
+            if (storedCode && storedCode.trim()) {
+              const currentStatus = getSubmissionStatus(problem.id);
+              if (currentStatus !== 'accepted') {
+                problemsToSubmit.push({ problem, code: storedCode, language: storedLang });
+              }
+            }
+          } catch (error) {
+            console.error(`Failed to retrieve code for problem ${problem.id}:`, error);
+          }
+        }
+      }
+      
+      let submittedCount = 0;
+      if (problemsToSubmit.length > 0) {
+        for (const {problem, code, language} of problemsToSubmit) {
+          try {
+            const response = await fetch(`/api/contests/${contestId}/problems/${problem.id}/submit`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+              body: JSON.stringify({ code, language, autoSubmitted: true }),
+            });
+            if (response.ok) submittedCount++;
+          } catch (error) {
+            console.error(`Error auto-submitting solution for problem ${problem.title}:`, error);
+          }
+        }
+      }
+      return { submittedCount };
+    },
+    onSuccess: (data) => {
+      // This runs AFTER the mutationFn is successful.
+      toast({
+        title: 'Contest Ended',
+        description: `Your participation has ended. ${data.submittedCount} solution(s) were submitted.`,
+      });
 
-  // Always disable right-click during the contest page lifecycle
+      // ✅ THIS IS THE KEY: Invalidate queries to force a refresh on the next page.
+      queryClient.invalidateQueries({ queryKey: ['/api/contests'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/contests/enrollment-statuses'] });
+
+      // Clean up local state and redirect.
+      const tabSwitchKey = `contest:${contestId}:tabSwitchCount`;
+      try { localStorage.removeItem(tabSwitchKey); } catch {}
+      setShowEndContestDialog(false);
+      exitContestAndRedirect();
+    },
+    onError: (error) => {
+      console.error('Error ending contest:', error);
+      toast({
+        title: 'Error Ending Contest',
+        description: 'Could not end your participation. Please try again.',
+        variant: 'destructive',
+      });
+      setShowEndContestDialog(false);
+    },
+  });
+
+  // This function now just triggers the mutation.
+  const confirmEndContest = () => {
+    endContestMutation.mutate();
+  };
+
   useEffect(() => {
     const preventContextMenu = (e: MouseEvent) => {
       e.preventDefault();
@@ -360,9 +337,7 @@ const confirmEndContest = async () => {
     };
   }, []);
 
-  // Detect full-screen exit and show dialog
   useEffect(() => {
-    // Enhanced URL detection for contest pages
     const isContestPage = () => {
       const currentPath = window.location.pathname;
       const isContestProblemsListPage = /^\/contests\/[^\/]+\/problems\/?$/.test(currentPath);
@@ -370,7 +345,6 @@ const confirmEndContest = async () => {
       return isContestProblemsListPage || isSpecificProblemPage;
     };
 
-    // Automatically add contest-fullscreen class if we're on a contest page
     const ensureContestClass = () => {
       const isOnContestPage = isContestPage();
       if (isOnContestPage && !document.body.classList.contains('contest-fullscreen')) {
@@ -379,7 +353,6 @@ const confirmEndContest = async () => {
       }
     };
 
-    // Check and add class immediately
     ensureContestClass();
 
     const handleFullscreenChange = () => {
@@ -387,12 +360,7 @@ const confirmEndContest = async () => {
       const isInFullscreen = document.fullscreenElement || extendedDocument.webkitFullscreenElement || extendedDocument.msFullscreenElement;
       const isOnContestPage = isContestPage();
       
-      console.log('Full-screen change detected:', {
-        hasContestClass,
-        isInFullscreen,
-        isOnContestPage,
-        currentPath: window.location.pathname
-      });
+      console.log('Full-screen change detected:', { hasContestClass, isInFullscreen, isOnContestPage, currentPath: window.location.pathname });
       
       if (hasContestClass && !isInFullscreen && isOnContestPage) {
         console.log('Full-screen mode exited on contest page, showing dialog...');
@@ -405,17 +373,11 @@ const confirmEndContest = async () => {
       }
     };
 
-    // Check initial state
     const hasContestClass = document.body.classList.contains('contest-fullscreen');
     const isInFullscreen = document.fullscreenElement || extendedDocument.webkitFullscreenElement || extendedDocument.msFullscreenElement;
     const isOnContestPage = isContestPage();
     
-    console.log('Initial full-screen check:', {
-      hasContestClass,
-      isInFullscreen,
-      isOnContestPage,
-      currentPath: window.location.pathname
-    });
+    console.log('Initial full-screen check:', { hasContestClass, isInFullscreen, isOnContestPage, currentPath: window.location.pathname });
     
     if (hasContestClass && !isInFullscreen && isOnContestPage) {
       console.log('Initial check: Full-screen not active on contest page, showing dialog...');
@@ -427,21 +389,14 @@ const confirmEndContest = async () => {
     document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
     document.addEventListener('msfullscreenchange', handleFullscreenChange);
 
-    // Also check when URL changes (user navigates between contest pages)
     const checkFullscreenOnUrlChange = () => {
-      // Ensure contest class is present
       ensureContestClass();
       
       const hasContestClass = document.body.classList.contains('contest-fullscreen');
       const isInFullscreen = document.fullscreenElement || extendedDocument.webkitFullscreenElement || extendedDocument.msFullscreenElement;
       const isOnContestPage = isContestPage();
       
-      console.log('URL change detected, checking full-screen status:', {
-        hasContestClass,
-        isInFullscreen,
-        isOnContestPage,
-        currentPath: window.location.pathname
-      });
+      console.log('URL change detected, checking full-screen status:', { hasContestClass, isInFullscreen, isOnContestPage, currentPath: window.location.pathname });
       
       if (hasContestClass && !isInFullscreen && isOnContestPage) {
         console.log('URL change: Full-screen not active on contest page, showing dialog...');
@@ -450,16 +405,12 @@ const confirmEndContest = async () => {
       }
     };
 
-    // Check immediately and also on URL changes
     checkFullscreenOnUrlChange();
     
-    // Also listen for popstate (back/forward buttons) and hashchange
     window.addEventListener('popstate', ensureContestClass);
     window.addEventListener('hashchange', ensureContestClass);
     
-    // Periodic check every 500ms to catch any missed full-screen exits
     const periodicCheck = setInterval(() => {
-      // Ensure contest class is present
       ensureContestClass();
       
       const hasContestClass = document.body.classList.contains('contest-fullscreen');
@@ -473,9 +424,7 @@ const confirmEndContest = async () => {
       }
     }, 500);
     
-    // Listen for focus and visibility changes (alt-tab, browser switching)
     const handleFocusAndVisibility = () => {
-      // Ensure contest class is present
       ensureContestClass();
       
       const hasContestClass = document.body.classList.contains('contest-fullscreen');
@@ -492,7 +441,6 @@ const confirmEndContest = async () => {
     window.addEventListener('focus', handleFocusAndVisibility);
     document.addEventListener('visibilitychange', handleFocusAndVisibility);
     
-    // Listen for URL changes (navigation between contest pages)
     const originalPushState = history.pushState;
     const originalReplaceState = history.replaceState;
     
@@ -511,29 +459,23 @@ const confirmEndContest = async () => {
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
       document.removeEventListener('msfullscreenchange', handleFullscreenChange);
       
-      // Clear periodic check
       clearInterval(periodicCheck);
       
-      // Remove focus and visibility listeners
       window.removeEventListener('focus', handleFocusAndVisibility);
       document.removeEventListener('visibilitychange', handleFocusAndVisibility);
       
-      // Remove navigation listeners
       window.removeEventListener('popstate', ensureContestClass);
       window.removeEventListener('hashchange', ensureContestClass);
       
-      // Restore original history methods
       history.pushState = originalPushState;
       history.replaceState = originalReplaceState;
     };
   }, []);
 
-  // Disable copy-paste globally when in contest fullscreen mode
   useEffect(() => {
     if (!isFullscreen) return;
 
     const preventCopyPaste = (e: KeyboardEvent | ClipboardEvent) => {
-      // Prevent Ctrl+C, Ctrl+V, Ctrl+X and block Escape/F11 in contest mode
       if (e instanceof KeyboardEvent) {
         const isCtrlCombo = (e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'v' || e.key === 'x');
         const isEscape = e.key === 'Escape' || e.key === 'Esc';
@@ -555,7 +497,6 @@ const confirmEndContest = async () => {
               variant: 'destructive'
             });
           } else if (isF11) {
-            // Best-effort block; some browsers may not allow preventing F11
             toast({
               title: 'Fullscreen Toggle Disabled',
               description: 'Toggling fullscreen with F11 is disabled during contest mode.',
@@ -567,12 +508,10 @@ const confirmEndContest = async () => {
         }
       }
       
-      // Prevent paste events
       if (e instanceof ClipboardEvent) {
         e.preventDefault();
         e.stopPropagation();
         
-        // Show toast notification
         toast({
           title: 'Paste Disabled',
           description: 'Paste operations are disabled during contest mode to prevent plagiarism.',
@@ -583,13 +522,11 @@ const confirmEndContest = async () => {
       }
     };
 
-    // Add event listeners
     document.addEventListener('keydown', preventCopyPaste, true);
     document.addEventListener('copy', preventCopyPaste, true);
     document.addEventListener('paste', preventCopyPaste, true);
     document.addEventListener('cut', preventCopyPaste, true);
 
-    // Cleanup
     return () => {
       document.removeEventListener('keydown', preventCopyPaste, true);
       document.removeEventListener('copy', preventCopyPaste, true);
@@ -598,7 +535,6 @@ const confirmEndContest = async () => {
     };
   }, [isFullscreen, toast]);
 
-  // Always disable F12 (DevTools) during the contest page lifecycle
   useEffect(() => {
     const preventDevTools = (e: KeyboardEvent) => {
       if (e.key === 'F12') {
@@ -620,13 +556,10 @@ const confirmEndContest = async () => {
     };
   }, [toast]);
 
-  // Cleanup on component unmount
   useEffect(() => {
     return () => {
-      // Remove contest-fullscreen class when component unmounts
       document.body.classList.remove('contest-fullscreen');
       
-      // Exit full-screen mode if still active
       if (document.fullscreenElement || extendedDocument.webkitFullscreenElement || extendedDocument.msFullscreenElement) {
         if (document.exitFullscreen) {
           document.exitFullscreen();
@@ -639,7 +572,6 @@ const confirmEndContest = async () => {
     };
   }, []);
 
-  // Function to enter full-screen mode
   const enterFullscreen = async () => {
     try {
       const elem: any = document.documentElement;
@@ -663,73 +595,6 @@ const confirmEndContest = async () => {
     }
   };
 
-  // Function to exit full-screen mode and redirect to contests page
-  const exitContestAndRedirect = () => {
-    // Remove the contest-fullscreen class from body
-    document.body.classList.remove('contest-fullscreen');
-    
-    // Exit full-screen mode if browser supports it
-    if (document.fullscreenElement || extendedDocument.webkitFullscreenElement || extendedDocument.msFullscreenElement) {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      } else if (extendedDocument.webkitExitFullscreen) {
-        extendedDocument.webkitExitFullscreen();
-      } else if (extendedDocument.msExitFullscreen) {
-        extendedDocument.msExitFullscreen();
-      }
-    }
-    
-    // Redirect to contests page
-    setLocation('/contests');
-  };
-
-  // When contest time expires, auto-submit code for all problems once
-  useEffect(() => {
-    // contest is declared below; guard until it exists via typeof check on window to avoid TDZ
-    const hasContest = typeof contest !== 'undefined' && contest !== null as any;
-    if (!hasContest || autoSubmitted) return;
-    if (timeLeftMs !== null && timeLeftMs <= 0) {
-      (async () => {
-        try {
-          for (const problem of (contest as any).problems || []) {
-            const key = `contest:${contestId}:problem:${problem.id}:code`;
-            const savedCode = localStorage.getItem(key) || code;
-            if (!savedCode) continue;
-            try {
-              await fetch(`/api/contests/${contestId}/problems/${problem.id}/submit`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                },
-                body: JSON.stringify({ code: savedCode, language })
-              });
-            } catch (e) {
-              console.error('Auto-submit failed for problem', problem.id, e);
-            }
-          }
-          setAutoSubmitted(true);
-          toast({ title: 'Contest Ended', description: 'Your code has been auto-submitted.' });
-          
-          // Reset tab switch count for this contest (in case user re-enters)
-          const tabSwitchKey = `contest:${contestId}:tabSwitchCount`;
-          try {
-            localStorage.removeItem(tabSwitchKey);
-          } catch (error) {
-            console.log('Failed to clear tab switch count:', error);
-          }
-          
-          // Exit full-screen mode and redirect after auto-submit
-          setTimeout(() => {
-            exitContestAndRedirect();
-          }, 2000); // Give user 2 seconds to see the toast
-        } catch (err) {
-          console.error('Auto-submit batch failed', err);
-        }
-      })();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeLeftMs, autoSubmitted, code, language, contestId]);
 
   const formatTimeLeft = (ms?: number | null) => {
     if (!ms && ms !== 0) return '';
@@ -739,7 +604,6 @@ const confirmEndContest = async () => {
     return `${minutes}m ${seconds.toString().padStart(2, '0')}s`;
   };
 
-  // Fetch contest details
   const { data: contest, isLoading, error: contestError } = useQuery<Contest>({
     queryKey: ['/api/contests', contestId],
     queryFn: async () => {
@@ -767,7 +631,6 @@ const confirmEndContest = async () => {
     },
     enabled: !!contestId && isAuthenticated,
     retry: (failureCount, error) => {
-      // Don't retry on authentication errors
       if (error.message === 'Authentication required') {
         return false;
       }
@@ -776,7 +639,6 @@ const confirmEndContest = async () => {
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
-  // Fetch user enrollment status to check if disqualified
   const { data: enrollmentStatus } = useQuery({
     queryKey: ['/api/contests', contestId, 'participants', 'me'],
     queryFn: async () => {
@@ -792,7 +654,7 @@ const confirmEndContest = async () => {
       });
       
       if (!response.ok) {
-        return null; // User not enrolled
+        return null;
       }
       
       return response.json();
@@ -801,7 +663,6 @@ const confirmEndContest = async () => {
     retry: false,
   });
 
-  // Fetch user submissions
   const { data: submissions, isFetching: isFetchingSubmissions } = useQuery<Submission[]>({
     queryKey: ['/api/contests', contestId, 'submissions'],
     queryFn: async () => {
@@ -833,7 +694,6 @@ const confirmEndContest = async () => {
     refetchOnReconnect: activeTab === 'submissions',
     refetchOnMount: activeTab === 'submissions',
     retry: (failureCount, error) => {
-      // Don't retry on authentication errors
       if (error.message === 'Authentication required') {
         return false;
       }
@@ -841,7 +701,6 @@ const confirmEndContest = async () => {
     },
   });
 
-  // Track a pending loading state after Submit until the next submissions refetch settles
   const [submissionsLoadPending, setSubmissionsLoadPending] = useState(false);
   useEffect(() => {
     if (submissionsLoadPending && !isFetchingSubmissions) {
@@ -849,7 +708,6 @@ const confirmEndContest = async () => {
     }
   }, [isFetchingSubmissions, submissionsLoadPending]);
 
-  // Fetch contest progress
   const { data: progress } = useQuery({
     queryKey: ['/api/contests', contestId, 'progress'],
     queryFn: async () => {
@@ -874,7 +732,6 @@ const confirmEndContest = async () => {
     enabled: !!contestId && isAuthenticated,
   });
 
-  // Fetch leaderboard
   const { data: leaderboardData } = useQuery({
     queryKey: ['/api/contests', contestId, 'leaderboard'],
     queryFn: async () => {
@@ -899,7 +756,6 @@ const confirmEndContest = async () => {
     enabled: !!contestId && isAuthenticated,
   });
 
-  // Establish a 1s ticking timer once contest is known
   useEffect(() => {
     if (!contest) return;
     const end = new Date(contest.endTime).getTime();
@@ -909,7 +765,6 @@ const confirmEndContest = async () => {
     return () => clearInterval(interval);
   }, [contest]);
 
-  // Fetch announcements
   const { data: announcementsData } = useQuery({
     queryKey: ['/api/contests', contestId, 'announcements'],
     queryFn: async () => {
@@ -934,7 +789,6 @@ const confirmEndContest = async () => {
     enabled: !!contestId && isAuthenticated,
   });
 
-  // If a specific problemId is present in URL, select it when contest loads
   useEffect(() => {
     if (!contest || !initialProblemParam) return;
     const target = contest.problems.find(p => p.id === initialProblemParam);
@@ -949,13 +803,11 @@ const confirmEndContest = async () => {
         starterCode['python'] ||
         ''
       );
-      // Add class to body to support fullscreen view without nav (for safety if route still uses layout)
       document.body.classList.add('contest-fullscreen');
       return () => { document.body.classList.remove('contest-fullscreen'); };
     }
   }, [contest, initialProblemParam, language]);
 
-  // Update code when problem or language changes
   useEffect(() => {
     if (selectedProblem) {
       console.log('Selected problem data:', {
@@ -980,7 +832,49 @@ const confirmEndContest = async () => {
     }
   }, [selectedProblem, language]);
 
-  // Submit solution mutation
+  useEffect(() => {
+    const hasContest = typeof contest !== 'undefined' && contest !== null as any;
+    if (!hasContest || autoSubmitted) return;
+    if (timeLeftMs !== null && timeLeftMs <= 0) {
+      (async () => {
+        try {
+          for (const problem of (contest as any).problems || []) {
+            const key = `contest:${contestId}:problem:${problem.id}:code`;
+            const savedCode = localStorage.getItem(key) || code;
+            if (!savedCode) continue;
+            try {
+              await fetch(`/api/contests/${contestId}/problems/${problem.id}/submit`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                },
+                body: JSON.stringify({ code: savedCode, language })
+              });
+            } catch (e) {
+              console.error('Auto-submit failed for problem', problem.id, e);
+            }
+          }
+          setAutoSubmitted(true);
+          toast({ title: 'Contest Ended', description: 'Your code has been auto-submitted.' });
+          
+          const tabSwitchKey = `contest:${contestId}:tabSwitchCount`;
+          try {
+            localStorage.removeItem(tabSwitchKey);
+          } catch (error) {
+            console.log('Failed to clear tab switch count:', error);
+          }
+          
+          setTimeout(() => {
+            exitContestAndRedirect();
+          }, 2000);
+        } catch (err) {
+          console.error('Auto-submit batch failed', err);
+        }
+      })();
+    }
+  }, [timeLeftMs, autoSubmitted, code, language, contestId, contest, exitContestAndRedirect, toast]);
+
   const submitMutation = useMutation({
     mutationFn: async ({ problemId, code, language }: { problemId: string; code: string; language: string }) => {
       const response = await fetch(`/api/contests/${contestId}/problems/${problemId}/submit`, {
@@ -1015,7 +909,6 @@ const confirmEndContest = async () => {
     },
   });
 
-  // Run code mutation
   const runCodeMutation = useMutation({
     mutationFn: async ({ code, language }: { code: string; language: string }) => {
       const response = await fetch('/api/execute', {
@@ -1053,7 +946,6 @@ const confirmEndContest = async () => {
     },
   });
 
-  // Custom input execution mutation
   const customInputExecutionMutation = useMutation({
     mutationFn: async ({ code, language, customInput }: { code: string; language: string; customInput: string }) => {
       const response = await fetch('/api/contests/run-custom-input', {
@@ -1085,7 +977,6 @@ const confirmEndContest = async () => {
           variant: 'destructive',
         });
         
-        // Show error in Test Results tab
         const errorResult = {
           input: customInput,
           output: '',
@@ -1096,7 +987,6 @@ const confirmEndContest = async () => {
           error: data.error || 'Execution failed',
           isCustomInput: true
         } as any;
-        // Clear previous results and show only custom input result
         setTestResults([errorResult]);
         setShowTestResults(true);
         setActiveTab('results');
@@ -1106,7 +996,6 @@ const confirmEndContest = async () => {
           description: `Output: ${data.output || 'No output'}`,
         });
         
-        // Show success result in Test Results tab
         const successResult = {
           input: customInput,
           output: data.output || 'No output',
@@ -1117,7 +1006,6 @@ const confirmEndContest = async () => {
           error: null,
           isCustomInput: true
         } as any;
-        // Clear previous results and show only custom input result
         setTestResults([successResult]);
         setShowTestResults(true);
         setActiveTab('results');
@@ -1148,12 +1036,10 @@ const confirmEndContest = async () => {
       console.log(`📝 [CONTEST-RUN] Language: ${language}`);
       console.log(`📝 [CONTEST-RUN] Code length: ${code.length} characters`);
       
-      // Get the first example as test input
       console.log(`🔍 [CONTEST-RUN] Problem examples:`, selectedProblem.examples);
       console.log(`🔍 [CONTEST-RUN] First example:`, selectedProblem.examples?.[0]);
       console.log(`🔍 [CONTEST-RUN] Problem testCases:`, selectedProblem.testCases);
       
-      // Try to get input from examples first, then testCases
       let testInput = selectedProblem.examples?.[0]?.input || '';
       if (!testInput && selectedProblem.testCases?.[0]?.input) {
         testInput = selectedProblem.testCases[0].input;
@@ -1161,10 +1047,8 @@ const confirmEndContest = async () => {
       
       console.log(`📥 [CONTEST-RUN] Test input: "${testInput}"`);
       
-      // If no test input, provide a default for testing
       if (!testInput) {
         console.log(`⚠️ [CONTEST-RUN] No test input found, using default`);
-        // For reverse string problem, use a simple test case
         if (selectedProblem.title.toLowerCase().includes('reverse')) {
           testInput = "hello";
         } else {
@@ -1191,7 +1075,6 @@ const confirmEndContest = async () => {
 
       if (result.error) {
         console.error(`❌ [CONTEST-RUN] Execution error: ${result.error}`);
-        // Surface the error inside Test Results tab
         const errorResult = {
           input: testInput,
           output: '',
@@ -1205,7 +1088,6 @@ const confirmEndContest = async () => {
         setShowTestResults(true);
         setActiveTab('results');
       } else {
-        // Try to get expected output from testCases first, then examples
         let expectedOutput = '';
         if (selectedProblem.testCases?.[0]?.expectedOutput) {
           expectedOutput = selectedProblem.testCases[0].expectedOutput;
@@ -1218,7 +1100,6 @@ const confirmEndContest = async () => {
         console.log(`✅ [CONTEST-RUN] Test ${isCorrect ? 'PASSED' : 'FAILED'}`);
         console.log(`📊 [CONTEST-RUN] Expected: "${expectedOutput}", Got: "${result.output}"`);
         
-        // Store test results for display
         const testResult = {
           input: testInput,
           output: result.output,
@@ -1283,7 +1164,6 @@ const confirmEndContest = async () => {
 
       const result = await response.json();
       
-      // Show appropriate toast based on actual test results
       if (result.allPassed) {
       toast({
           title: 'All Test Cases Passed! 🎉',
@@ -1304,7 +1184,6 @@ const confirmEndContest = async () => {
         });
       }
 
-      // Store test results for display in Test Results tab
       if (result.testResults && Array.isArray(result.testResults)) {
         const formattedTestResults = result.testResults.map((testResult: any) => ({
           passed: testResult.passed,
@@ -1319,20 +1198,17 @@ const confirmEndContest = async () => {
         }));
         setTestResults(formattedTestResults);
         setShowTestResults(true);
-        setActiveTab('results'); // Automatically switch to Test Results tab
+        setActiveTab('results');
       }
 
-      // If accepted, refresh progress so solved indicator and button update
       if (result.status === 'accepted') {
         queryClient.invalidateQueries({ queryKey: ['/api/contests', contestId, 'progress'] });
       }
 
-      // Show latest submission details automatically
       setDetailsSubmission(result);
       setIsDetailsOpen(true);
       setActiveTab('submissions');
 
-      // Refresh submissions
       setSubmissionsLoadPending(true);
       queryClient.invalidateQueries({ queryKey: ['/api/contests', contestId, 'submissions'] });
     } catch (error) {
@@ -1352,7 +1228,6 @@ const confirmEndContest = async () => {
     const subsForProblem = submissions.filter(s => s.problemId === problemId);
     if (subsForProblem.length === 0) return null;
     
-    // Find the latest submission
     let latest = subsForProblem[0];
     for (const s of subsForProblem) {
       const sTime = new Date(s.submittedAt || s.submissionTime || 0).getTime();
@@ -1366,14 +1241,12 @@ const confirmEndContest = async () => {
   }
 }, [submissions]);
 
-  // Function to auto-submit all problems and terminate contest (for tab switching)
   const terminateContestAndSubmit = useCallback(async () => {
-    if (isContestTerminated) return; // Prevent multiple calls
+    if (isContestTerminated) return;
     
     setIsContestTerminated(true);
     
     try {
-      // Mark this contest as ended for the current user so listings reflect the state
       try {
         const uid = localStorage.getItem('userId') || 'me';
         localStorage.setItem(`contest:${contestId}:endedBy:${uid}`, 'true');
@@ -1381,7 +1254,6 @@ const confirmEndContest = async () => {
         console.warn('Failed to set endedBy flag in localStorage:', e);
       }
 
-      // Get all problems that have been worked on (have code in localStorage)
       const problemsToSubmit: Array<{problem: ContestProblem, code: string, language: string}> = [];
       
       if (contest?.problems) {
@@ -1394,13 +1266,9 @@ const confirmEndContest = async () => {
             const storedLang = localStorage.getItem(langKey) || 'javascript';
             
             if (storedCode && storedCode.trim()) {
-              // Check if this problem has already been submitted (regardless of status)
               const currentStatus = getSubmissionStatus(problem.id);
               const hasSubmission = currentStatus !== null;
               
-              // Only submit if:
-              // 1. No submission exists yet, OR
-              // 2. Submission exists but status is not 'accepted' AND we have new/modified code
               if (!hasSubmission) {
                 problemsToSubmit.push({
                   problem,
@@ -1409,7 +1277,6 @@ const confirmEndContest = async () => {
                 });
                 console.log(`Will auto-submit problem ${problem.title} - no previous submission`);
               } else if (currentStatus !== 'accepted') {
-                // Check if code has changed since last submission
                 const lastSubmission = submissions?.find(s => s.problemId === problem.id);
                 if (lastSubmission && lastSubmission.code !== storedCode) {
                   problemsToSubmit.push({
@@ -1431,7 +1298,6 @@ const confirmEndContest = async () => {
         }
       }
       
-      // Auto-submit only problems that need submission
       let submittedCount = 0;
       let skippedCount = 0;
       let failedCount = 0;
@@ -1476,7 +1342,6 @@ const confirmEndContest = async () => {
           }
         }
       } else {
-        // Count how many problems were already accepted
         skippedCount = contest?.problems?.filter(problem => {
           const status = getSubmissionStatus(problem.id);
           return status === 'accepted';
@@ -1486,7 +1351,6 @@ const confirmEndContest = async () => {
       
       console.log(`[AUTO-SUBMIT] Summary: ${submittedCount} submitted, ${failedCount} failed, ${skippedCount} already accepted`);
       
-      // Show completion message
       if (submittedCount > 0) {
         const message = failedCount > 0 
           ? `You have been disqualified due to excessive tab switching. ${submittedCount} solution(s) auto-submitted, ${failedCount} failed, ${skippedCount} already accepted.`
@@ -1517,31 +1381,28 @@ const confirmEndContest = async () => {
         });
       }
       
-      // Now update the user's contest status in the database (after submissions are complete)
       try {
-      // ✅ FIX: This fetch call now includes a body to trigger disqualification.
-        const endUserResponse = await fetch(`/api/contests/${contestId}/end-user`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
+        const endUserResponse = await fetch(`/api/contests/${contestId}/end-user`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
           body: JSON.stringify({
             reason: 'disqualified',
             details: 'Excessive tab switching detected'
           }),
-        });
-        
-        if (endUserResponse.ok) {
-          console.log('User contest status updated in database due to tab switching');
-        } else {
-          console.warn('Failed to update user contest status in database:', await endUserResponse.text());
-        }
-      } catch (error) {
-        console.warn('Error updating user contest status in database:', error);
-      }
+        });
+        
+        if (endUserResponse.ok) {
+          console.log('User contest status updated in database due to tab switching');
+        } else {
+          console.warn('Failed to update user contest status in database:', await endUserResponse.text());
+        }
+      } catch (error) {
+        console.warn('Error updating user contest status in database:', error);
+      }
       
-      // Reset tab switch count for this contest (in case user re-enters)
       const tabSwitchKey = `contest:${contestId}:tabSwitchCount`;
       try {
         localStorage.removeItem(tabSwitchKey);
@@ -1549,7 +1410,6 @@ const confirmEndContest = async () => {
         console.log('Failed to clear tab switch count:', error);
       }
       
-      // Wait a moment then redirect
       setTimeout(() => {
         exitContestAndRedirect();
       }, 3000);
@@ -1562,40 +1422,32 @@ const confirmEndContest = async () => {
         variant: 'destructive',
       });
       
-      // Still redirect even if auto-submission failed
       setTimeout(() => {
         exitContestAndRedirect();
       }, 2000);
     }
-  }, [isContestTerminated, contestId, contest, getSubmissionStatus, toast, exitContestAndRedirect]);
+  }, [isContestTerminated, contestId, contest, getSubmissionStatus, toast, exitContestAndRedirect, submissions]);
 
-  // Tab switch detection for contest pages
   useEffect(() => {
-    // Check if we're on a contest page using regex
     const isContestPage = () => {
       const currentPath = window.location.pathname;
       return /^\/contests\/[^\/]+\/problems(?:\/[^\/]+)?$/.test(currentPath);
     };
 
     if (!isContestPage() || isContestTerminated) {
-      return; // Only track on contest pages and if contest isn't already terminated
+      return;
     }
-
-    // Use the refs defined at component level
 
     const handleVisibilityChange = () => {
       const isVisible = !document.hidden;
       const currentlyHasFocus = document.hasFocus();
       
-      // Only count as a switch if enough time has passed (prevent rapid firing)
       const now = Date.now();
       if (now - lastSwitchTimeRef.current < 500) {
         return;
       }
       
-      // Detect when user comes back to the tab (was hidden/unfocused, now visible/focused)
       if ((!wasVisibleRef.current || !hasFocusRef.current) && (isVisible && currentlyHasFocus)) {
-        // User returned to contest tab - increment counter and show dialog
         setTabSwitchCount(prevCount => {
           const newCount = prevCount + 1;
           
@@ -1604,11 +1456,9 @@ const confirmEndContest = async () => {
           console.log(`Current state: isVisible=${isVisible}, hasFocus=${currentlyHasFocus}`);
           
           if (newCount >= 3) {
-            // Terminate contest immediately
             console.log('Contest terminated due to excessive tab switching');
             terminateContestAndSubmit();
           } else {
-            // Show warning dialog
             setShowTabSwitchDialog(true);
           }
           
@@ -1624,15 +1474,13 @@ const confirmEndContest = async () => {
 
     const handleFocus = () => {
       const isVisible = !document.hidden;
-      const currentlyHasFocus = true; // Focus event means we have focus
+      const currentlyHasFocus = true;
       
-      // Only count as a switch if enough time has passed
       const now = Date.now();
       if (now - lastSwitchTimeRef.current < 500) {
         return;
       }
       
-      // Detect when user comes back to the tab
       if ((!wasVisibleRef.current || !hasFocusRef.current) && (isVisible && currentlyHasFocus)) {
         setTabSwitchCount(prevCount => {
           const newCount = prevCount + 1;
@@ -1673,21 +1521,16 @@ const confirmEndContest = async () => {
       console.log('Page shown - user returned');
     };
 
-    // Add event listeners
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
     window.addEventListener('blur', handleBlur);
     window.addEventListener('pagehide', handlePageHide);
     window.addEventListener('pageshow', handlePageShow);
 
-    // Periodic check for tab switching (every 100ms for real-time detection)
-    // This is a backup method in case event listeners miss some switches
     const periodicCheck = setInterval(() => {
       const isVisible = !document.hidden;
       const currentlyHasFocus = document.hasFocus();
       
-      // Only update refs if they're different from current state
-      // This prevents interference with event-based detection
       if (wasVisibleRef.current !== isVisible) {
         wasVisibleRef.current = isVisible;
       }
@@ -1696,13 +1539,10 @@ const confirmEndContest = async () => {
       }
     }, 100);
 
-    // Initial state logging
     console.log(`Tab switch tracking initialized. Current count: ${tabSwitchCount}`);
     console.log(`Initial state: isVisible=${!document.hidden}, hasFocus=${document.hasFocus()}`);
     console.log(`Refs initialized: wasVisible=${wasVisibleRef.current}, hasFocus=${hasFocusRef.current}`);
     
-
-
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
@@ -1711,7 +1551,7 @@ const confirmEndContest = async () => {
       window.removeEventListener('pageshow', handlePageShow);
       clearInterval(periodicCheck);
     };
-  }, [isContestTerminated, terminateContestAndSubmit]); // Added terminateContestAndSubmit to dependencies
+  }, [isContestTerminated, terminateContestAndSubmit]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -1744,34 +1584,28 @@ const confirmEndContest = async () => {
         return 'text-gray-600';
     }
   };
-     useEffect(() => {
-  // Trigger fullscreen only when a problem is newly selected
+      useEffect(() => {
   if (selectedProblem && !isFullscreen) {
     enterFullscreen();
   }
-}, [selectedProblem]); // This effect runs when `selectedProblem` changes
-  // Check if user is disqualified or contest has ended - redirect to leaderboard immediately
+}, [selectedProblem, isFullscreen]);
   useEffect(() => {
-  // ✅ FIX: Add this guard clause
   if (!enrollmentStatus || !contest) {
     return;
   }
 
-  // Check if user is disqualified
   if (enrollmentStatus.isDisqualified) {
     setLocation(`/contests/${contestId}/leaderboard`);
     return;
   }
 
-  // Check if contest has been manually ended
   if (enrollmentStatus.contestEndMethod === 'manually_ended') {
     const now = new Date();
-    const endTime = new Date(contest.endTime); // Now safe to access
+    const endTime = new Date(contest.endTime);
     if (now > endTime) {
       setLocation(`/contests/${contestId}/leaderboard`);
     }
   }
-  // ✅ Also, update the dependency array
 }, [enrollmentStatus, contest, contestId, setLocation]);
   if (isLoading) {
     return (
@@ -1829,7 +1663,6 @@ const confirmEndContest = async () => {
 
 
   if (enrollmentStatus?.isDisqualified || (enrollmentStatus?.contestEndMethod === 'manually_ended' && new Date() > new Date(contest.endTime))) {
-    // Show loading state while redirecting
     return (
       <div className="p-6">
         <div className="text-center py-8">
@@ -1848,7 +1681,6 @@ const confirmEndContest = async () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <h1 className="text-xl font-semibold">{contest.title}</h1>
-              {/* Tab Switch Counter */}
               <Badge variant={tabSwitchCount >= 2 ? "destructive" : tabSwitchCount >= 1 ? "secondary" : "outline"}>
                 Tab Switches: {tabSwitchCount}/3
               </Badge>
@@ -1888,7 +1720,6 @@ const confirmEndContest = async () => {
             <div>
               <h1 className="text-xl font-semibold">{contest.title}</h1>
               <p className="text-sm text-gray-600">Contest Problems</p>
-              {/* Tab Switch Counter */}
               <div className="flex items-center space-x-2 mt-1">
                 <Badge variant={tabSwitchCount >= 2 ? "destructive" : tabSwitchCount >= 1 ? "secondary" : "outline"}>
                   Tab Switches: {tabSwitchCount}/3
@@ -1897,22 +1728,6 @@ const confirmEndContest = async () => {
             </div>
           </div>
           
-          {/* Full-screen Warning
-          {isFullscreen && (
-            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <div className="flex items-center space-x-3">
-                <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0" />
-                <div>
-                  <h3 className="text-sm font-medium text-red-800">Contest Mode Active</h3>
-                  <p className="text-sm text-red-700 mt-1">
-                    Copy and paste operations are disabled to prevent plagiarism. All keyboard shortcuts (Ctrl+C, Ctrl+V, Ctrl+X) and right-click context menus are disabled.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )} */}
-          
-          {/* Contest Progress */}
           {progress && (
             <div className="flex items-center space-x-6">
               <div className="text-center">
@@ -1926,7 +1741,7 @@ const confirmEndContest = async () => {
               <div className="text-center">
                   <div className={`text-lg font-semibold ${timeLeftMs !== null && timeLeftMs <= 5 * 60 * 1000 ? 'text-red-600 animate-pulse' : 'text-purple-600'}`}> 
                     {formatTimeLeft(timeLeftMs ?? progress.timeRemaining)}
-                </div>
+                  </div>
                 <div className="text-xs text-gray-500">Time Left</div>
               </div>
             </div>
@@ -1990,33 +1805,31 @@ const confirmEndContest = async () => {
                 End Contest
               </Button>
                       </div>
-                    )}
-                  </div>
-            </div>
+                      )}
+                    </div>
+                </div>
       )}
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Main Content: overview list or editor */}
         <div className="flex-1 flex flex-col">
           {selectedProblem ? (
             <>
-              {/* Split layout: left description/results tabs, right editor */}
               <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0 h-full">
                 <div className="border-r flex flex-col">
                   <div className="px-6 py-4 border-b flex-shrink-0">
-                    <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
-                    <TabsList>
-                        <TabsTrigger value="problem">Description</TabsTrigger>
-                        <TabsTrigger value="results">Test Results</TabsTrigger>
-                      <TabsTrigger value="submissions">Submissions</TabsTrigger>
-                    </TabsList>
-                      <TabsContent value="problem" className="p-6 max-h-[calc(100vh-300px)] overflow-y-auto">
-                        <div className="space-y-4">
+                  <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
+                  <TabsList>
+                      <TabsTrigger value="problem">Description</TabsTrigger>
+                      <TabsTrigger value="results">Test Results</TabsTrigger>
+                    <TabsTrigger value="submissions">Submissions</TabsTrigger>
+                  </TabsList>
+                    <TabsContent value="problem" className="p-6 max-h-[calc(100vh-300px)] overflow-y-auto">
+                      <div className="space-y-4">
                       <div>
                         <h2 className="text-2xl font-bold mb-2">{selectedProblem.title}</h2>
                         <div className="flex items-center space-x-4 mb-4">
                           <Badge variant={selectedProblem.difficulty === 'easy' ? 'default' : 
-                                         selectedProblem.difficulty === 'medium' ? 'secondary' : 'destructive'}>
+                                    selectedProblem.difficulty === 'medium' ? 'secondary' : 'destructive'}>
                             {selectedProblem.difficulty}
                           </Badge>
                           <Badge variant="outline">{selectedProblem.points} points</Badge>
@@ -2037,54 +1850,54 @@ const confirmEndContest = async () => {
                       </div>
                       
                           {selectedProblem.examples && selectedProblem.examples.length > 0 ? (
-                        <div key="examples">
-                          <h3 className="font-semibold mb-2">Examples</h3>
-                          {selectedProblem.examples.map((example, index) => (
-                            <div key={index} className="bg-gray-50 rounded-lg p-4 mb-4">
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <h4 className="font-medium text-sm mb-2">Input:</h4>
-                                  <pre className="bg-white p-2 rounded text-sm">{example.input}</pre>
-                          </div>
-                                <div>
-                                  <h4 className="font-medium text-sm mb-2">Output:</h4>
-                                  <pre className="bg-white p-2 rounded text-sm">{example.output}</pre>
-                                </div>
-                              </div>
-                              {example.explanation && (
-                                <div className="mt-3">
-                                  <h4 className="font-medium text-sm mb-2">Explanation:</h4>
-                                  <p className="text-sm text-gray-600">{example.explanation}</p>
-                        </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        selectedProblem.testCases && selectedProblem.testCases.length > 0 ? (
-                          <div key="examples-fallback">
+                          <div key="examples">
                             <h3 className="font-semibold mb-2">Examples</h3>
-                            <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <h4 className="font-medium text-sm mb-2">Input:</h4>
-                                  <pre className="bg-white p-2 rounded text-sm">{selectedProblem.testCases[0].input}</pre>
+                            {selectedProblem.examples.map((example, index) => (
+                              <div key={index} className="bg-gray-50 rounded-lg p-4 mb-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <h4 className="font-medium text-sm mb-2">Input:</h4>
+                                    <pre className="bg-white p-2 rounded text-sm">{example.input}</pre>
+                                  </div>
+                                  <div>
+                                    <h4 className="font-medium text-sm mb-2">Output:</h4>
+                                    <pre className="bg-white p-2 rounded text-sm">{example.output}</pre>
+                                  </div>
                                 </div>
-                                <div>
-                                  <h4 className="font-medium text-sm mb-2">Output:</h4>
-                                  <pre className="bg-white p-2 rounded text-sm">{selectedProblem.testCases[0].expectedOutput}</pre>
-                                </div>
+                                {example.explanation && (
+                                  <div className="mt-3">
+                                    <h4 className="font-medium text-sm mb-2">Explanation:</h4>
+                                    <p className="text-sm text-gray-600">{example.explanation}</p>
+                                  </div>
+                                )}
                               </div>
-                              {selectedProblem.testCases[0].explanation && (
-                                <div className="mt-3">
-                                  <h4 className="font-medium text-sm">Explanation:</h4>
-                                  <p className="text-sm text-gray-600">{selectedProblem.testCases[0].explanation}</p>
-                                </div>
-                              )}
-                            </div>
+                            ))}
                           </div>
-                        ) : null
-                      )}
+                        ) : (
+                          selectedProblem.testCases && selectedProblem.testCases.length > 0 ? (
+                            <div key="examples-fallback">
+                              <h3 className="font-semibold mb-2">Examples</h3>
+                              <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <h4 className="font-medium text-sm mb-2">Input:</h4>
+                                    <pre className="bg-white p-2 rounded text-sm">{selectedProblem.testCases[0].input}</pre>
+                                  </div>
+                                  <div>
+                                    <h4 className="font-medium text-sm mb-2">Output:</h4>
+                                    <pre className="bg-white p-2 rounded text-sm">{selectedProblem.testCases[0].expectedOutput}</pre>
+                                  </div>
+                                </div>
+                                {selectedProblem.testCases[0].explanation && (
+                                  <div className="mt-3">
+                                    <h4 className="font-medium text-sm">Explanation:</h4>
+                                    <p className="text-sm text-gray-600">{selectedProblem.testCases[0].explanation}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ) : null
+                        )}
                       
                       {selectedProblem.inputFormat && (
                         <div key="input-format">
@@ -2110,25 +1923,24 @@ const confirmEndContest = async () => {
                               <div className="prose max-w-none">
                                 <p className="whitespace-pre-wrap">{selectedProblem.constraints}</p>
                                 </div>
-                                </div>
-                              )}
+                              </div>
+                            )}
                           
                           
                           
-                         
-                    </div>
-                  </TabsContent>
-                      <TabsContent value="results" className="p-6">
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">Test Results</h3>
-                      {testResults.length > 0 ? (
-                        <div className="space-y-4">
-                          {testResults.map((result, index) => (
-                            <div key={index} className={`border rounded-lg p-4 ${
-                              result.passed ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
-                            }`}>
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center space-x-2">
+                      </div>
+                    </TabsContent>
+                    <TabsContent value="results" className="p-6">
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Test Results</h3>
+                    {testResults.length > 0 ? (
+                      <div className="space-y-4">
+                        {testResults.map((result, index) => (
+                          <div key={index} className={`border rounded-lg p-4 ${
+                            result.passed ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+                          }`}>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center space-x-2">
                                 <span className={`font-medium ${
                                   result.passed ? 'text-green-700' : 'text-red-700'
                                 }`}>
@@ -2144,91 +1956,91 @@ const confirmEndContest = async () => {
                                       Hidden Test
                                     </Badge>
                                   )}
-                                </div>
-                                <div className="text-sm text-gray-600">
-                                  Runtime: {result.runtime}ms | Memory: {result.memory}MB
-                                </div>
                               </div>
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                                <div>
-                                  <h4 className="font-medium mb-1">Input:</h4>
-                                  <pre className="bg-white p-2 rounded border text-xs overflow-x-auto">{result.input}</pre>
-                                </div>
-                                <div>
-                                  <h4 className="font-medium mb-1">Expected Output:</h4>
-                                  <pre className="bg-white p-2 rounded border text-xs overflow-x-auto">{result.expectedOutput || 'N/A'}</pre>
-                                </div>
-                                <div>
-                                  <h4 className="font-medium mb-1">Your Output:</h4>
-                                  <pre className="bg-white p-2 rounded border text-xs overflow-x-auto">{result.output}</pre>
-                                </div>
+                              <div className="text-sm text-gray-600">
+                                Runtime: {result.runtime}ms | Memory: {result.memory}MB
                               </div>
-                              {result.error && (
-                                <div className="mt-2">
-                                  <h4 className="font-medium text-red-700 mb-1">Error:</h4>
-                                  <pre className="bg-red-100 p-2 rounded border text-xs text-red-700 overflow-x-auto">{result.error}</pre>
-                                </div>
-                              )}
                             </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 text-gray-500">
-                          <p>No test results available. Run your code to see results.</p>
-                        </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                              <div>
+                                <h4 className="font-medium mb-1">Input:</h4>
+                                <pre className="bg-white p-2 rounded border text-xs overflow-x-auto">{result.input}</pre>
+                              </div>
+                              <div>
+                                <h4 className="font-medium mb-1">Expected Output:</h4>
+                                <pre className="bg-white p-2 rounded border text-xs overflow-x-auto">{result.expectedOutput || 'N/A'}</pre>
+                              </div>
+                              <div>
+                                <h4 className="font-medium mb-1">Your Output:</h4>
+                                <pre className="bg-white p-2 rounded border text-xs overflow-x-auto">{result.output}</pre>
+                              </div>
+                            </div>
+                            {result.error && (
+                              <div className="mt-2">
+                                <h4 className="font-medium text-red-700 mb-1">Error:</h4>
+                                <pre className="bg-red-100 p-2 rounded border text-xs text-red-700 overflow-x-auto">{result.error}</pre>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <p>No test results available. Run your code to see results.</p>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+                    <TabsContent value="submissions" className="p-6">
+                            <div>
+                      <h3 className="font-semibold mb-4">Your Submissions</h3>
+                      {(submissionsLoadPending || (activeTab === 'submissions' && !submissions && isFetchingSubmissions)) && (
+                        <div className="flex items-center justify-center py-8">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mr-2"></div>
+                          <span className="text-sm text-gray-600">Loading latest submissions...</span>
+                              </div>
                       )}
-                    </div>
-                  </TabsContent>
-                      <TabsContent value="submissions" className="p-6">
-                                <div>
-                          <h3 className="font-semibold mb-4">Your Submissions</h3>
-                          {(submissionsLoadPending || (activeTab === 'submissions' && !submissions && isFetchingSubmissions)) && (
-                            <div className="flex items-center justify-center py-8">
-                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mr-2"></div>
-                              <span className="text-sm text-gray-600">Loading latest submissions...</span>
+                      {selectedProblem && submissions && submissions.length > 0 ? (
+                        <div className="space-y-2">
+                          {[...submissions]
+                            .filter(s => s.problemId === selectedProblem.id)
+                            .sort((a, b) => {
+                              const aTime = (a.submittedAt || a.submissionTime) ? new Date(a.submittedAt || (a.submissionTime as string)).getTime() : 0;
+                              const bTime = (b.submittedAt || b.submissionTime) ? new Date(b.submittedAt || (b.submissionTime as string)).getTime() : 0;
+                              return bTime - aTime;
+                            })
+                            .map((sub) => (
+                              <div key={sub.id} className="p-3 bg-gray-50 rounded-md flex items-center justify-between">
+                                <div className="flex items-center space-x-2">
+                                  {sub.status === 'accepted' ? (
+                                    <CheckCircle className="h-4 w-4 text-green-600" />
+                                  ) : sub.status === 'wrong_answer' ? (
+                                    <XCircle className="h-4 w-4 text-red-600" />
+                                  ) : (
+                                    <AlertCircle className="h-4 w-4 text-yellow-600" />
+                                  )}
+                                  <span className="text-sm">{sub.status.replace('_', ' ')}</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <div className="text-xs text-gray-500">
+                                    {new Date(sub.submittedAt || (sub.submissionTime as string)).toLocaleString()}
                                   </div>
-                          )}
-                          {selectedProblem && submissions && submissions.length > 0 ? (
-                            <div className="space-y-2">
-                              {[...submissions]
-                                .filter(s => s.problemId === selectedProblem.id)
-                                .sort((a, b) => {
-                                  const aTime = (a.submittedAt || a.submissionTime) ? new Date(a.submittedAt || (a.submissionTime as string)).getTime() : 0;
-                                  const bTime = (b.submittedAt || b.submissionTime) ? new Date(b.submittedAt || (b.submissionTime as string)).getTime() : 0;
-                                  return bTime - aTime;
-                                })
-                                .map((sub) => (
-                                  <div key={sub.id} className="p-3 bg-gray-50 rounded-md flex items-center justify-between">
-                                    <div className="flex items-center space-x-2">
-                                      {sub.status === 'accepted' ? (
-                                        <CheckCircle className="h-4 w-4 text-green-600" />
-                                      ) : sub.status === 'wrong_answer' ? (
-                                        <XCircle className="h-4 w-4 text-red-600" />
-                                      ) : (
-                                        <AlertCircle className="h-4 w-4 text-yellow-600" />
-                                      )}
-                                      <span className="text-sm">{sub.status.replace('_', ' ')}</span>
-                    </div>
-                                    <div className="flex items-center gap-3">
-                                      <div className="text-xs text-gray-500">
-                                        {new Date(sub.submittedAt || (sub.submissionTime as string)).toLocaleString()}
-                                  </div>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => {
-                                          setDetailsSubmission(sub);
-                                        setIsDetailsOpen(true);
-                                      }}
-                                    >
-                                      View Details
-                                    </Button>
-                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                        setDetailsSubmission(sub);
+                                      setIsDetailsOpen(true);
+                                    }}
+                                  >
+                                    View Details
+                                  </Button>
+                                </div>
                               </div>
                             ))}
                         </div>
-                          ) : (
-                            <p className="text-sm text-gray-500">No submissions yet</p>
+                      ) : (
+                        <p className="text-sm text-gray-500">No submissions yet</p>
                       )}
                     </div>
                   </TabsContent>
@@ -2255,7 +2067,6 @@ const confirmEndContest = async () => {
                 />
                   </div>
                   
-                  {/* Custom Input Section - Below Code Editor */}
                   <div className="border-t-2 border-blue-500 bg-gray-900 p-4 flex-shrink-0 min-h-[200px]">
                     <div className="space-y-3">
                       <h3 className="text-lg font-semibold text-blue-400 mb-2">Custom Input Testing</h3>
@@ -2286,24 +2097,6 @@ const confirmEndContest = async () => {
                           />
                         </div>
                         
-                        {/* Run Button for Custom Input */}
-                        {/* <div className="flex justify-end">
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              console.log('🚀 [CONTEST-CUSTOM-INPUT] Starting custom input execution');
-                              console.log('📝 [CONTEST-CUSTOM-INPUT] Code length:', code.length);
-                              console.log('📥 [CONTEST-CUSTOM-INPUT] Custom input:', customInput);
-                              customInputExecutionMutation.mutate({ code, language, customInput });
-                            }}
-                            disabled={customInputExecutionMutation.isPending || !customInput.trim()}
-                            className="flex items-center space-x-2 bg-gray-800 border-gray-600 text-gray-100 hover:bg-gray-700"
-                            size="sm"
-                          >
-                            <Play className="w-4 h-4" />
-                            <span>{customInputExecutionMutation.isPending ? "Executing..." : "Run with Custom Input"}</span>
-                          </Button>
-                        </div> */}
                       </div>
                     </div>
                   </div>
@@ -2311,7 +2104,6 @@ const confirmEndContest = async () => {
               </div>
             </>
           ) : (
-            // Overview mode: full-width problems list with Solve buttons
             <div className="flex-1 overflow-y-auto p-6">
               <div className="mb-4">
                 <h2 className="text-lg font-semibold">Problems ({contest.problems.length})</h2>
@@ -2342,19 +2134,18 @@ const confirmEndContest = async () => {
                       </div>
                       <Button
                         onClick={() => {
-                            // Only one set of these lines is needed
                             setSelectedProblem(problem);
                             setActiveTab('problem');
                             setLocation(`/contests/${contestId}/problems/${problem.id}`);
                             setTimeout(() => {
-                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                              window.scrollTo({ top: 0, behavior: 'smooth' });
                             }, 0);
                         }}
                         className={`whitespace-nowrap ${isSolved ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 border border-gray-300' : ''}`}
                         variant={isSolved ? 'outline' : 'default'}
-                    >
+                      >
                         {isSolved ? 'Solve Again' : 'Solve'}
-                    </Button>
+                      </Button>
                     </div>
                   );
                 })}
@@ -2364,7 +2155,6 @@ const confirmEndContest = async () => {
         </div>
       </div>
 
-      {/* Submission Details Modal */}
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>
@@ -2401,7 +2191,6 @@ const confirmEndContest = async () => {
         </DialogContent>
       </Dialog>
 
-      {/* Full-Screen Blocking Overlay */}
       {showFullscreenDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-75 z-40 flex items-center justify-center">
           <div className="bg-white rounded-lg p-8 max-w-md mx-4 text-center">
@@ -2421,7 +2210,6 @@ const confirmEndContest = async () => {
         </div>
       )}
 
-      {/* Tab Switch Warning Dialog */}
       {showTabSwitchDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center">
           <div className="bg-white rounded-lg p-8 max-w-md mx-4 text-center">
@@ -2447,34 +2235,26 @@ const confirmEndContest = async () => {
         </div>
       )}
 
-      {/* End Contest Confirmation Dialog */}
-      {showEndContestDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-8 max-w-md mx-4 text-center">
-            <div className="text-6xl mb-4">🏁</div>
-            <h2 className="text-2xl font-bold text-red-600 mb-4">End Contest?</h2>
-            <p className="text-gray-700 mb-6 text-lg">
-              Are you sure you want to end this contest? All your current code will be automatically submitted before ending.
-            </p>
-            <div className="flex space-x-4 justify-center">
-              <Button 
-                onClick={() => setShowEndContestDialog(false)}
-                variant="outline"
-                className="px-6 py-2"
-              >
-                Cancel
-              </Button>
-              <Button 
-                onClick={confirmEndContest}
-                variant="destructive"
-                className="px-6 py-2"
-              >
-                End Contest
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ✅ FINAL FIX: The AlertDialog component is used here */}
+      <AlertDialog open={showEndContestDialog} onOpenChange={setShowEndContestDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. All of your saved code will be submitted, and you will not be able to resume the contest.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmEndContest}
+              disabled={endContestMutation.isPending}
+            >
+              {endContestMutation.isPending ? 'Ending...' : 'Yes, End Contest'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
-} 
+}

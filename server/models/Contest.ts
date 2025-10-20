@@ -45,6 +45,7 @@ export interface IContest {
   duration?: number; // contest duration in minutes
   timeZone?: string;
   contestEndMethod?: 'manually_ended' | 'time_expired' | null;
+  participantContestEndMethod?: { [userId: string]: 'manually_ended' | 'disqualified' | null };
   allowDirectEnrollment?: boolean; // Feature flag for QR/link enrollment
   participants?: string[]; // Array of user IDs enrolled in the contest
   problems: IContestProblem[];
@@ -103,6 +104,7 @@ const contestSchema = new mongoose.Schema<IContestDocument>({
   duration: Number, // contest duration in minutes
   timeZone: { type: String, default: 'UTC' },
   contestEndMethod: { type: String, enum: ['manually_ended', 'time_expired', null], default: null },
+  participantContestEndMethod: { type: Map, of: String },
   // Feature flag for QR/link enrollment
   allowDirectEnrollment: { type: Boolean, default: false },
   participants: [String], // Array of user IDs enrolled in the contest
